@@ -1,0 +1,11 @@
+#sidebar {
+    width: 220px;
+    transition: width 0.3s;
+    overflow: hidden;
+    min-height: 100vh;
+}
+
+#sidebar.collapsed {
+    width: 0;
+    padding: 0;
+}

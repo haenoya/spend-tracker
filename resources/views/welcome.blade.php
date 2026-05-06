@@ -26,6 +26,11 @@
     <main id="main-content" class="flex-grow-1 p-4">
         <button id="sidebarToggle" class="btn btn-sm btn-outline-secondary mb-3">☰ 메뉴</button>
 
+        <!-- 성공 알림 -->
+        <div id="successAlert" class="alert alert-success" style="display:none;">
+            ✅ 지출이 등록되었습니다!
+        </div>
+
         <!-- 요약 카드 -->
         <div class="row mb-4">
             <div class="col-6">
@@ -53,14 +58,17 @@
                 <form id="spendForm">
                     <div class="row g-2">
                         <div class="col-md-2">
-                            <input type="date" id="date" class="form-control" required>
+                            <input type="date" id="date" class="form-control">
+                            <div class="invalid-feedback">날짜를 입력해주세요.</div>
                         </div>
                         <div class="col-md-3">
-                            <input type="text" id="item" class="form-control" placeholder="항목명 (최대 20자)" maxlength="20" required>
+                            <input type="text" id="item" class="form-control" placeholder="항목명 (최대 20자)" maxlength="20">
                             <small class="text-muted"><span id="charCount">0</span>/20</small>
+                            <div class="invalid-feedback">항목명을 입력해주세요.</div>
                         </div>
                         <div class="col-md-2">
-                            <input type="number" id="amount" class="form-control" placeholder="금액" required>
+                            <input type="number" id="amount" class="form-control" placeholder="금액">
+                            <div class="invalid-feedback">금액을 입력해주세요.</div>
                         </div>
                         <div class="col-md-2">
                             <select id="category" class="form-select">
