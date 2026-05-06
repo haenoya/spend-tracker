@@ -113,6 +113,46 @@
                 </table>
             </div>
         </div>
+
+        <!-- 수정 모달 -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">지출 수정</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editId">
+                <div class="mb-3">
+                    <label class="form-label">날짜</label>
+                    <input type="date" id="editDate" class="form-control">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">항목명</label>
+                    <input type="text" id="editItem" class="form-control" maxlength="20">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">금액</label>
+                    <input type="number" id="editAmount" class="form-control">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">카테고리</label>
+                    <select id="editCategory" class="form-select">
+                        <option value="식비">식비</option>
+                        <option value="교통비">교통비</option>
+                        <option value="통신비">통신비</option>
+                        <option value="기타">기타</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                <button type="button" id="editSaveBtn" class="btn btn-primary">저장</button>
+            </div>
+        </div>
+    </div>
+</div>
     </main>
 </div>
 
@@ -120,6 +160,8 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <!-- jQuery -->
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <!-- Custom JS -->
 <script src="{{ asset('assets/js/app.js') }}"></script>
 </body>

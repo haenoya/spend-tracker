@@ -43,4 +43,25 @@ class ExpenseController extends Controller
         DB::table('expenses')->where('id', $id)->delete();
         return response()->json(['message' => '삭제 완료']);
     }
+
+    // 수정
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'date'     => 'required|date',
+            'item'     => 'required|max:20',
+            'amount'   => 'required|integer|min:1',
+            'category' => 'required',
+        ]);
+
+        DB::table('expenses')->where('id', $id)->update([
+            'date'       => $request->date,
+            'item'       => $request->item,
+            'amount'     => $request->amount,
+            'category'   => $request->category,
+            'updated_at' => now(),
+        ]);
+
+        return response()->json(['message' => '수정 완료']);
+    }
 }
