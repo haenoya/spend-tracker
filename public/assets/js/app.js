@@ -5,9 +5,8 @@ $(function () {
             url: "/api/expenses",
             method: "GET",
             beforeSend: function () {
-                $("#expenseList").html(
-                    '<tr><td colspan="5" class="text-center">로딩 중... ⏳</td></tr>',
-                );
+                $("#loadingSpinner").show();
+                $("#expenseList").empty();
             },
             success: function (data) {
                 $("#expenseList").empty();
@@ -46,6 +45,9 @@ $(function () {
                 $("#expenseList").html(
                     '<tr><td colspan="5" class="text-center text-danger">데이터를 불러오지 못했습니다.</td></tr>',
                 );
+            },
+            complete: function () {
+                $("#loadingSpinner").hide();
             },
         });
     }

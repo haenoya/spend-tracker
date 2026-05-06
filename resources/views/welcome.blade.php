@@ -24,6 +24,13 @@
 
     <!-- 메인 콘텐츠 -->
     <main id="main-content" class="flex-grow-1 p-4">
+        <!-- 로딩 스피너 -->
+        <div id="loadingSpinner" class="text-center my-3" style="display:none;">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">로딩 중...</span>
+            </div>
+        </div>
+
         <button id="sidebarToggle" class="btn btn-sm btn-outline-secondary mb-3">☰ 메뉴</button>
 
         <!-- 성공 알림 -->
