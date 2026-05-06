@@ -54,6 +54,31 @@ $(function () {
 
     loadExpenses();
 
+    // 카테고리 Select 동적 로딩
+    function loadCategoryOptions() {
+        $.ajax({
+            url: "/api/categories",
+            method: "GET",
+            success: function (data) {
+                $("#category, #editCategory, #categoryFilter").empty();
+
+                // 카테고리 필터에만 전체 옵션 추가
+                $("#categoryFilter").append(
+                    '<option value="">전체 카테고리</option>',
+                );
+
+                $.each(data, function (i, category) {
+                    var option = `<option value="${category.name}">${category.name}</option>`;
+                    $("#category, #editCategory, #categoryFilter").append(
+                        option,
+                    );
+                });
+            },
+        });
+    }
+
+    loadCategoryOptions();
+
     // 1. 사이드바 접기/펴기
     $("#sidebarToggle").on("click", function () {
         $("#sidebar").toggleClass("collapsed");
@@ -276,4 +301,109 @@ $(function () {
         });
         $("#totalAmount").text(total.toLocaleString() + "원");
     }
+
+    // 7. 실시간 검색
+    $("#searchInput").on("keyup", function () {
+        var keyword = $(this).val().toLowerCase();
+        $("#expenseList tr").each(function () {
+            var item = $(this).find("td:eq(1)").text().toLowerCase();
+            if (item.includes(keyword)) {
+                $(this).show();
+            } else {
+                $(this).hide();
+            }
+        });
+    });
+
+    // 8. 카테고리 필터
+    $("#categoryFilter").on("change", function () {
+        var selected = $(this).val();
+        $("#expenseList tr").each(function () {
+            var category = $(this).find("td:eq(3)").text();
+            if (selected === "" || category === selected) {
+                $(this).show();
+            } else {
+                $(this).hide();
+            }
+        });
+    });
+
+    // 9. 카테고리 관리 모달 열기
+    $("#categoryModalBtn").on("click", function (e) {
+        e.preventDefault();
+        loadCategories();
+        $("#categoryModal").modal("show");
+    });
+
+    // 10. 카테고리 목록 불러오기
+    function loadCategories() {
+        $.ajax({
+            url: "/api/categories",
+            method: "GET",
+            success: function (data) {
+                $("#categoryList").empty();
+                $.each(data, function (i, category) {
+                    var item = `
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        ${category.name}
+                        <button class="btn btn-sm btn-danger deleteCategoryBtn" data-id="${category.id}">삭제</button>
+                    </li>
+                `;
+                    $("#categoryList").append(item);
+                });
+            },
+        });
+    }
+
+    // 엔터로 카테고리 추가
+    $("#newCategory").on("keyup", function (e) {
+        if (e.key === "Enter") {
+            $("#addCategoryBtn").click();
+        }
+    });
+
+    // 11. 카테고리 추가
+    $("#addCategoryBtn").on("click", function () {
+        var name = $("#newCategory").val().trim();
+        if (!name) return;
+
+        $.ajax({
+            url: "/api/categories",
+            method: "POST",
+            data: {
+                name: name,
+                _token: $('meta[name="csrf-token"]').attr("content"),
+            },
+            success: function (response) {
+                $("#newCategory").val("");
+                loadCategories();
+                // Select 옵션에도 추가
+                $("#category, #editCategory, #categoryFilter").append(
+                    `<option value="${response.name}">${response.name}</option>`,
+                );
+            },
+            error: function () {
+                Swal.fire({
+                    icon: "error",
+                    title: "오류",
+                    text: "이미 존재하는 카테고리예요.",
+                });
+            },
+        });
+    });
+
+    // 12. 카테고리 삭제
+    $(document).on("click", ".deleteCategoryBtn", function () {
+        var id = $(this).data("id");
+        $.ajax({
+            url: "/api/categories/" + id,
+            method: "DELETE",
+            headers: {
+                "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr("content"),
+            },
+            success: function () {
+                loadCategories();
+            },
+        });
+    });
 });
