@@ -2,8 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Http\Requests\StoreExpenseRequest;
+use App\Http\Requests\UpdateExpenseRequest;
 
 class ExpenseController extends Controller
 {
@@ -14,16 +15,9 @@ class ExpenseController extends Controller
         return response()->json($expenses);
     }
 
-    // 등록
-    public function store(Request $request)
+    // 등록 — StoreExpenseRequest로 유효성 검사 분리
+    public function store(StoreExpenseRequest $request)
     {
-        $request->validate([
-            'date'     => 'required|date',
-            'item'     => 'required|max:20',
-            'amount'   => 'required|integer|min:1',
-            'category' => 'required',
-        ]);
-
         $id = DB::table('expenses')->insertGetId([
             'date'       => $request->date,
             'item'       => $request->item,
@@ -37,23 +31,9 @@ class ExpenseController extends Controller
         return response()->json(['id' => $id, 'message' => '등록 완료'], 201);
     }
 
-    // 삭제
-    public function destroy($id)
+    // 수정 — UpdateExpenseRequest로 유효성 검사 분리
+    public function update(UpdateExpenseRequest $request, $id)
     {
-        DB::table('expenses')->where('id', $id)->delete();
-        return response()->json(['message' => '삭제 완료']);
-    }
-
-    // 수정
-    public function update(Request $request, $id)
-    {
-        $request->validate([
-            'date'     => 'required|date',
-            'item'     => 'required|max:20',
-            'amount'   => 'required|integer|min:1',
-            'category' => 'required',
-        ]);
-
         DB::table('expenses')->where('id', $id)->update([
             'date'       => $request->date,
             'item'       => $request->item,
@@ -63,5 +43,12 @@ class ExpenseController extends Controller
         ]);
 
         return response()->json(['message' => '수정 완료']);
+    }
+
+    // 삭제
+    public function destroy($id)
+    {
+        DB::table('expenses')->where('id', $id)->delete();
+        return response()->json(['message' => '삭제 완료']);
     }
 }
