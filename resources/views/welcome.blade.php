@@ -63,6 +63,26 @@
                 </div>
             </div>
 
+            <!-- 차트 영역 -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-title">카테고리별 지출 비중</h6>
+                            <canvas id="donutChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-title">날짜별 누적 지출</h6>
+                            <canvas id="lineChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- 지출 입력 폼 -->
             <div class="card mb-4">
                 <div class="card-body">
@@ -76,6 +96,7 @@
                             <div class="col-md-3">
                                 <input type="text" id="item" class="form-control" placeholder="항목명 (최대 20자)"
                                     maxlength="20">
+                                <small id="aiSuggestion" class="text-success fw-bold" style="display:none;"></small>
                                 <small class="text-muted"><span id="charCount">0</span>/20</small>
                                 <div class="invalid-feedback">항목명을 입력해주세요.</div>
                             </div>
@@ -201,6 +222,8 @@
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Custom JS -->
     <script src="{{ asset('assets/js/app.js') }}"></script>
 </body>

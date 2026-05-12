@@ -1,4 +1,54 @@
 $(function () {
+    // AI 카테고리 추천 키워드 매핑
+    var categoryKeywords = {
+        식비: [
+            "식당",
+            "카페",
+            "커피",
+            "스벅",
+            "스타벅스",
+            "맥도날드",
+            "버거",
+            "치킨",
+            "피자",
+            "점심",
+            "저녁",
+            "아침",
+            "밥",
+            "음식",
+            "마트",
+            "편의점",
+            "쿠팡이츠",
+            "배민",
+            "배달",
+        ],
+        교통비: [
+            "택시",
+            "버스",
+            "지하철",
+            "카카오택시",
+            "우버",
+            "기차",
+            "ktx",
+            "고속버스",
+            "주유",
+            "주차",
+            "톨게이트",
+        ],
+        통신비: [
+            "통신",
+            "핸드폰",
+            "휴대폰",
+            "인터넷",
+            "넷플릭스",
+            "유튜브프리미엄",
+            "구독",
+            "애플",
+            "아이클라우드",
+        ],
+        기타: [],
+    };
+
     // 페이지 로드 시 지출 목록 불러오기
     function loadExpenses() {
         $.ajax({
@@ -40,6 +90,9 @@ $(function () {
                     "-",
                 );
                 $("#topCategory").text(topCategory);
+
+                // 차트 렌더링
+                renderCharts(data);
             },
             error: function () {
                 $("#expenseList").html(
@@ -87,6 +140,31 @@ $(function () {
     // 2. 글자 수 카운트
     $("#item").on("input", function () {
         $("#charCount").text($(this).val().length);
+    });
+
+    // AI 카테고리 자동 추천
+    $("#item").on("keyup", function () {
+        var input = $(this).val().toLowerCase();
+        var matched = null;
+
+        $.each(categoryKeywords, function (category, keywords) {
+            $.each(keywords, function (i, keyword) {
+                if (input.includes(keyword)) {
+                    matched = category;
+                    return false;
+                }
+            });
+            if (matched) return false;
+        });
+
+        if (matched) {
+            $("#category").val(matched);
+            $("#aiSuggestion")
+                .text("AI 추천: " + matched)
+                .fadeIn();
+        } else {
+            $("#aiSuggestion").fadeOut();
+        }
     });
 
     // 3. 금액 숫자 외 입력 방지
@@ -300,6 +378,70 @@ $(function () {
             total += Number(amountText);
         });
         $("#totalAmount").text(total.toLocaleString() + "원");
+    }
+
+    // 7. 차트 렌더링
+    var donutChartInstance = null;
+    var lineChartInstance = null;
+
+    function renderCharts(data) {
+        // 도넛 차트 데이터
+        var categoryCount = {};
+        var dateAmount = {};
+
+        $.each(data, function (i, expense) {
+            // 카테고리별 합산
+            categoryCount[expense.category] =
+                (categoryCount[expense.category] || 0) + Number(expense.amount);
+
+            // 날짜별 합산
+            dateAmount[expense.date] =
+                (dateAmount[expense.date] || 0) + Number(expense.amount);
+        });
+
+        var categoryLabels = Object.keys(categoryCount);
+        var categoryData = Object.values(categoryCount);
+
+        var dateLabels = Object.keys(dateAmount).sort();
+        var dateData = dateLabels.map((d) => dateAmount[d]);
+
+        // 도넛 차트
+        if (donutChartInstance) donutChartInstance.destroy();
+        donutChartInstance = new Chart(document.getElementById("donutChart"), {
+            type: "doughnut",
+            data: {
+                labels: categoryLabels,
+                datasets: [
+                    {
+                        data: categoryData,
+                        backgroundColor: [
+                            "#FF6384",
+                            "#36A2EB",
+                            "#FFCE56",
+                            "#4BC0C0",
+                        ],
+                    },
+                ],
+            },
+        });
+
+        // 꺾은선 차트
+        if (lineChartInstance) lineChartInstance.destroy();
+        lineChartInstance = new Chart(document.getElementById("lineChart"), {
+            type: "line",
+            data: {
+                labels: dateLabels,
+                datasets: [
+                    {
+                        label: "일별 지출",
+                        data: dateData,
+                        borderColor: "#36A2EB",
+                        tension: 0.3,
+                        fill: false,
+                    },
+                ],
+            },
+        });
     }
 
     // 7. 실시간 검색
