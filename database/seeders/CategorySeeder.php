@@ -13,7 +13,9 @@ class CategorySeeder extends Seeder
      */
     public function run(): void
     {
-        $categories = ['식비', '교통비', '통신비', '기타'];
+        DB::table('categories')->truncate();
+
+        $categories = ['식비', '교통비', '숙박비', '입장료', '카페·디저트', '기념품', '선물', '기타'];
 
         foreach ($categories as $category) {
             DB::table('categories')->insert([
