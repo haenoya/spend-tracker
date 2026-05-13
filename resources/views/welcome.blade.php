@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>개인 지출 관리 시스템</title>
+    <title>여행 정산 서비스</title>
     <!-- Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Custom CSS -->
@@ -17,18 +17,18 @@
     <div class="d-flex">
         <!-- 사이드바 -->
         <nav id="sidebar" class="bg-dark text-white p-3">
-            <h5 class="mb-4">💰 지출 관리</h5>
+            <h5 class="mb-4">✈️ 여행 정산</h5>
             <ul class="nav flex-column">
                 <li class="nav-item"><a href="#" class="nav-link text-white">대시보드</a></li>
                 <li class="nav-item"><a href="#" class="nav-link text-white">지출 내역</a></li>
-                <li class="nav-item">
-                    <a href="#" class="nav-link text-white" id="categoryModalBtn">카테고리 관리</a>
+                <li class="nav-item"><a href="#" class="nav-link text-white" id="categoryModalBtn">카테고리 관리</a>
                 </li>
             </ul>
         </nav>
 
         <!-- 메인 콘텐츠 -->
         <main id="main-content" class="flex-grow-1 p-4">
+
             <!-- 로딩 스피너 -->
             <div id="loadingSpinner" class="text-center my-3" style="display:none;">
                 <div class="spinner-border text-primary" role="status">
@@ -38,17 +38,12 @@
 
             <button id="sidebarToggle" class="btn btn-sm btn-outline-secondary mb-3">☰ 메뉴</button>
 
-            <!-- 성공 알림 -->
-            <div id="successAlert" class="alert alert-success" style="display:none;">
-                ✅ 지출이 등록되었습니다!
-            </div>
-
             <!-- 요약 카드 -->
             <div class="row mb-4">
                 <div class="col-6">
                     <div class="card">
                         <div class="card-body">
-                            <h6 class="card-subtitle text-muted">이번 달 총지출</h6>
+                            <h6 class="card-subtitle text-muted">총 지출 (원화 환산)</h6>
                             <h3 id="totalAmount" class="mt-2">0원</h3>
                         </div>
                     </div>
@@ -96,23 +91,32 @@
                             <div class="col-md-3">
                                 <input type="text" id="item" class="form-control" placeholder="항목명 (최대 20자)"
                                     maxlength="20">
-                                <small id="aiSuggestion" class="text-success fw-bold" style="display:none;"></small>
                                 <small class="text-muted"><span id="charCount">0</span>/20</small>
+                                <small id="aiSuggestion" class="text-success fw-bold" style="display:none;"></small>
                                 <div class="invalid-feedback">항목명을 입력해주세요.</div>
                             </div>
                             <div class="col-md-2">
-                                <input type="number" id="amount" class="form-control" placeholder="금액">
-                                <div class="invalid-feedback">금액을 입력해주세요.</div>
-                            </div>
-                            <div class="col-md-2">
-                                <select id="category" class="form-select">
-                                    <option value="식비">식비</option>
-                                    <option value="교통비">교통비</option>
-                                    <option value="통신비">통신비</option>
-                                    <option value="기타">기타</option>
+                                <select id="currency" class="form-select">
+                                    <option value="KRW">KRW 원화</option>
+                                    <option value="JPY">JPY 엔화</option>
+                                    <option value="USD">USD 달러</option>
                                 </select>
                             </div>
                             <div class="col-md-2">
+                                <input type="number" id="amount" class="form-control" placeholder="금액">
+                                <small id="amountKrw" class="text-muted" style="display:none;"></small>
+                                <div class="invalid-feedback">금액을 입력해주세요.</div>
+                            </div>
+                            <div class="col-md-1">
+                                <select id="payer" class="form-select">
+                                    <option value="나">나</option>
+                                    <option value="동생">동생</option>
+                                </select>
+                            </div>
+                            <div class="col-md-1">
+                                <select id="category" class="form-select"></select>
+                            </div>
+                            <div class="col-md-1">
                                 <button type="submit" class="btn btn-primary w-100">등록</button>
                             </div>
                         </div>
@@ -131,10 +135,6 @@
                         <div class="col-md-3">
                             <select id="categoryFilter" class="form-select">
                                 <option value="">전체 카테고리</option>
-                                <option value="식비">식비</option>
-                                <option value="교통비">교통비</option>
-                                <option value="통신비">통신비</option>
-                                <option value="기타">기타</option>
                             </select>
                         </div>
                     </div>
@@ -144,7 +144,9 @@
                                 <th>날짜</th>
                                 <th>항목</th>
                                 <th>금액</th>
+                                <th>원화</th>
                                 <th>카테고리</th>
+                                <th>결제자</th>
                                 <th>삭제</th>
                             </tr>
                         </thead>
@@ -174,17 +176,27 @@
                                 <input type="text" id="editItem" class="form-control" maxlength="20">
                             </div>
                             <div class="mb-3">
+                                <label class="form-label">통화</label>
+                                <select id="editCurrency" class="form-select">
+                                    <option value="KRW">KRW 원화</option>
+                                    <option value="JPY">JPY 엔화</option>
+                                    <option value="USD">USD 달러</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
                                 <label class="form-label">금액</label>
                                 <input type="number" id="editAmount" class="form-control">
                             </div>
                             <div class="mb-3">
-                                <label class="form-label">카테고리</label>
-                                <select id="editCategory" class="form-select">
-                                    <option value="식비">식비</option>
-                                    <option value="교통비">교통비</option>
-                                    <option value="통신비">통신비</option>
-                                    <option value="기타">기타</option>
+                                <label class="form-label">결제자</label>
+                                <select id="editPayer" class="form-select">
+                                    <option value="나">나</option>
+                                    <option value="동생">동생</option>
                                 </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">카테고리</label>
+                                <select id="editCategory" class="form-select"></select>
                             </div>
                         </div>
                         <div class="modal-footer">
@@ -213,6 +225,7 @@
                     </div>
                 </div>
             </div>
+
         </main>
     </div>
 

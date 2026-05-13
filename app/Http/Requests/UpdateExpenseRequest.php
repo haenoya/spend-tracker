@@ -14,10 +14,13 @@ class UpdateExpenseRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'date'     => 'required|date',
-            'item'     => 'required|max:20',
-            'amount'   => 'required|integer|min:1',
-            'category' => 'required',
+            'date'       => 'required|date',
+            'item'       => 'required|max:20',
+            'amount'     => 'required|integer|min:1',
+            'category'   => 'required',
+            'currency'   => 'required|string',
+            'payer'      => 'required|string',
+            'amount_krw' => 'required|integer|min:0',
         ];
     }
 

@@ -38,7 +38,10 @@ class ExpenseController extends Controller
             'date'       => $request->date,
             'item'       => $request->item,
             'amount'     => $request->amount,
+            'currency'   => $request->currency,
             'category'   => $request->category,
+            'payer'      => $request->payer,
+            'amount_krw' => $request->amount_krw,
             'updated_at' => now(),
         ]);
 
