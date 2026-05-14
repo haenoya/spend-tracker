@@ -38,6 +38,30 @@
 
             <button id="sidebarToggle" class="btn btn-sm btn-outline-secondary mb-3">☰ 메뉴</button>
 
+            <!-- 정산 카드 -->
+            <div class="card mb-4 border-warning">
+                <div class="card-body">
+                    <h5 class="card-title">💰 정산 현황</h5>
+                    <div class="row" id="settlementCard">
+                        <div class="col-md-3">
+                            <div class="text-muted small">내 총지출</div>
+                            <div class="fw-bold" id="myTotal">-</div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-muted small">동생 총지출</div>
+                            <div class="fw-bold" id="siblingTotal">-</div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-muted small">전체 총지출</div>
+                            <div class="fw-bold" id="grandTotal">-</div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-muted small">정산 결과</div>
+                            <div class="fw-bold text-danger" id="settlementResult">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <!-- 요약 카드 -->
             <div class="row mb-4">
                 <div class="col-6">

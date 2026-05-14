@@ -54,4 +54,35 @@ class ExpenseController extends Controller
         DB::table('expenses')->where('id', $id)->delete();
         return response()->json(['message' => '삭제 완료']);
     }
+
+    // 정산 계산
+    public function settlement()
+    {
+        $expenses = DB::table('expenses')->get();
+
+        $me = 0;
+        $sibling = 0;
+
+        foreach ($expenses as $expense) {
+            if ($expense->payer === '나') {
+                $me += $expense->amount_krw;
+            } else {
+                $sibling += $expense->amount_krw;
+            }
+        }
+
+        $total = $me + $sibling;
+        $diff = abs($me - $sibling);
+        $whoPays = $me > $sibling ? '동생' : '나';
+        $amount = round($diff / 2);
+
+        return response()->json([
+            'me'       => $me,
+            'sibling'  => $sibling,
+            'total'    => $total,
+            'diff'     => $diff,
+            'who_pays' => $whoPays,
+            'amount'   => $amount,
+        ]);
+    }
 }

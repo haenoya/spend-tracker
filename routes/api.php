@@ -17,3 +17,5 @@ Route::post('/categories', [CategoryController::class, 'store']);
 Route::delete('/categories/{id}', [CategoryController::class, 'destroy']);
 
 Route::get('/exchange-rate/{currency}', [ExchangeRateController::class, 'show']);
+
+Route::get('/expenses/settlement', [ExpenseController::class, 'settlement']);

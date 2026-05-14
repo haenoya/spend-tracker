@@ -86,6 +86,7 @@ $(function () {
                 renderTable(data);
                 calcSummary(data);
                 renderCharts(data);
+                loadSettlement(); // 정산 카드 갱신
             },
             error: function () {
                 $("#expenseList").html(
@@ -94,6 +95,31 @@ $(function () {
             },
             complete: function () {
                 $("#loadingSpinner").hide();
+            },
+        });
+    }
+
+    /**
+     * 정산 현황 불러오기
+     * GET /api/expenses/settlement → 정산 카드 갱신
+     */
+    function loadSettlement() {
+        $.ajax({
+            url: "/api/expenses/settlement",
+            method: "GET",
+            success: function (data) {
+                $("#myTotal").text(data.me.toLocaleString() + "원");
+                $("#siblingTotal").text(data.sibling.toLocaleString() + "원");
+                $("#grandTotal").text(data.total.toLocaleString() + "원");
+                $("#settlementResult").text(
+                    data.who_pays +
+                        "이/가 " +
+                        data.amount.toLocaleString() +
+                        "원 줘야 해요",
+                );
+            },
+            error: function () {
+                $("#settlementResult").text("정산 정보를 불러오지 못했습니다.");
             },
         });
     }
@@ -507,6 +533,18 @@ $(function () {
             $("#editCurrency").val(currency);
             $("#editCategory").val(category);
             $("#editPayer").val(payer);
+            // 수정 모달 열 때 현재 통화 환율 미리 로딩
+            if (currency !== "KRW") {
+                $.ajax({
+                    url: "/api/exchange-rate/" + currency,
+                    method: "GET",
+                    success: function (data) {
+                        currentRate = data.rate;
+                    },
+                });
+            } else {
+                currentRate = 1;
+            }
             $("#editModal").modal("show");
         });
 
@@ -622,6 +660,29 @@ $(function () {
                 },
             });
         });
+
+        // 수정 모달 통화 변경 시 환율 적용
+        $("#editCurrency").on("change", function () {
+            var currency = $(this).val();
+            if (currency === "KRW") {
+                currentRate = 1;
+                return;
+            }
+            $.ajax({
+                url: "/api/exchange-rate/" + currency,
+                method: "GET",
+                success: function (data) {
+                    currentRate = data.rate;
+                },
+                error: function () {
+                    Swal.fire({
+                        icon: "error",
+                        title: "오류",
+                        text: "환율 정보를 가져오지 못했습니다.",
+                    });
+                },
+            });
+        });
     }
 
     /* =========================================================
@@ -629,5 +690,6 @@ $(function () {
      * ========================================================= */
     loadExpenses();
     loadCategoryOptions();
+    loadSettlement();
     bindEvents();
 });
