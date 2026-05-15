@@ -15,6 +15,13 @@ class ExpenseController extends Controller
         return response()->json($expenses);
     }
 
+    // 단건 조회
+    public function show($id)
+    {
+        $expense = DB::table('expenses')->where('id', $id)->first();
+        return response()->json($expense);
+    }
+
     // 등록 — StoreExpenseRequest로 유효성 검사 분리
     public function store(StoreExpenseRequest $request)
     {
@@ -24,6 +31,9 @@ class ExpenseController extends Controller
             'amount'     => $request->amount,
             'category'   => $request->category,
             'memo'       => $request->memo,
+            'payer'      => $request->payer,
+            'currency'   => $request->currency,
+            'amount_krw' => $request->amount_krw,
             'created_at' => now(),
             'updated_at' => now(),
         ]);

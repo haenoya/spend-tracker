@@ -1,11 +1,140 @@
-#sidebar {
-    width: 220px;
-    transition: width 0.3s;
-    overflow: hidden;
-    min-height: 100vh;
+/* 기본 폰트 및 배경 */
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css");
+
+:root {
+    --primary: #4e73df;
+    --secondary: #858796;
+    --success: #1cc88a;
+    --danger: #e74a3b;
+    --bg-gray: #f8f9fc;
+    --card-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.1);
 }
 
-#sidebar.collapsed {
-    width: 0;
-    padding: 0;
+body {
+    font-family: "Pretendard", sans-serif;
+    background-color: var(--bg-gray);
+    color: #333;
+}
+
+/* 사이드바 스타일링 */
+#sidebar {
+    min-width: 250px;
+    max-width: 250px;
+    background: #4e73df;
+    background: linear-gradient(180deg, #4e73df 10%, #224abe 100%);
+    min-height: 100vh;
+    transition: all 0.3s;
+    z-index: 1000;
+}
+
+#sidebar .nav-link {
+    color: rgba(255, 255, 255, 0.8);
+    padding: 1rem;
+    border-radius: 8px;
+    margin: 0 10px 5px;
+}
+
+#sidebar .nav-link:hover,
+#sidebar .nav-link.active {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* 카드 디자인 */
+.card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: var(--card-shadow);
+}
+
+.card-title {
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+/* 지출 내역 리스트 (모바일용) */
+.expense-list-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    border-bottom: 1px solid #f1f1f1;
+    transition: background 0.2s;
+}
+
+.expense-list-item:last-child {
+    border-bottom: none;
+}
+
+.category-icon {
+    width: 40px;
+    height: 40px;
+    background: #f0f2f5;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    margin-right: 15px;
+}
+
+.expense-info {
+    flex: 1;
+}
+
+.expense-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 2px;
+}
+
+.expense-meta {
+    font-size: 0.8rem;
+    color: #888;
+}
+
+.expense-amount-box {
+    text-align: right;
+}
+
+.amount-main {
+    font-weight: 700;
+    font-size: 1rem;
+    color: #333;
+}
+
+.amount-sub {
+    font-size: 0.75rem;
+    color: #999;
+}
+
+/* 모바일 카드 행 */
+.mobile-row {
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.mobile-row:hover {
+    background: #f8f9fc;
+}
+
+/* 모바일 대응 */
+@media (max-width: 768px) {
+    #sidebar {
+        margin-left: -250px;
+        position: fixed;
+    }
+
+    #sidebar.active {
+        margin-left: 0;
+    }
+
+    .desktop-only {
+        display: none !important;
+    }
+}
+
+@media (min-width: 769px) {
+    .mobile-only {
+        display: none !important;
+    }
 }

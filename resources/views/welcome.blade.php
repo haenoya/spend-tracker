@@ -6,178 +6,130 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>여행 정산 서비스</title>
-    <!-- Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Custom CSS -->
     <link href="{{ asset('assets/css/style.css') }}" rel="stylesheet">
 </head>
 
 <body>
 
+    <header class="mobile-only d-flex justify-content-between align-items-center p-3 bg-white border-bottom sticky-top">
+        <button id="sidebarToggle" class="btn btn-light">☰</button>
+        <h5 class="m-0 fw-bold">✈️ 여행 정산</h5>
+        <div style="width:40px;"></div>
+    </header>
+
     <div class="d-flex">
-        <!-- 사이드바 -->
-        <nav id="sidebar" class="bg-dark text-white p-3">
-            <h5 class="mb-4">✈️ 여행 정산</h5>
-            <ul class="nav flex-column">
-                <li class="nav-item"><a href="#" class="nav-link text-white">대시보드</a></li>
-                <li class="nav-item"><a href="#" class="nav-link text-white">지출 내역</a></li>
-                <li class="nav-item"><a href="#" class="nav-link text-white" id="categoryModalBtn">카테고리 관리</a>
-                </li>
+        <nav id="sidebar" class="text-white p-3 shadow">
+            <h4 class="text-center my-4 fw-bold desktop-only">✈️ 여행 정산</h4>
+            <ul class="nav flex-column mt-4">
+                <li class="nav-item"><a href="#" class="nav-link active">📊 대시보드</a></li>
+                <li class="nav-item"><a href="#" class="nav-link">📜 지출 내역</a></li>
+                <li class="nav-item"><a href="#" class="nav-link" id="categoryModalBtn">⚙️ 카테고리 관리</a></li>
             </ul>
         </nav>
 
-        <!-- 메인 콘텐츠 -->
-        <main id="main-content" class="flex-grow-1 p-4">
+        <main class="flex-grow-1 p-3 p-md-4">
 
-            <!-- 로딩 스피너 -->
-            <div id="loadingSpinner" class="text-center my-3" style="display:none;">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">로딩 중...</span>
-                </div>
-            </div>
-
-            <button id="sidebarToggle" class="btn btn-sm btn-outline-secondary mb-3">☰ 메뉴</button>
-
-            <!-- 정산 카드 -->
-            <div class="card mb-4 border-warning">
-                <div class="card-body">
-                    <h5 class="card-title">💰 정산 현황</h5>
-                    <div class="row" id="settlementCard">
-                        <div class="col-md-3">
-                            <div class="text-muted small">내 총지출</div>
-                            <div class="fw-bold" id="myTotal">-</div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="text-muted small">동생 총지출</div>
-                            <div class="fw-bold" id="siblingTotal">-</div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="text-muted small">전체 총지출</div>
-                            <div class="fw-bold" id="grandTotal">-</div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="text-muted small">정산 결과</div>
-                            <div class="fw-bold text-danger" id="settlementResult">-</div>
+            <div class="row g-3 mb-4">
+                <div class="col-12 col-md-8">
+                    <div class="card h-100 bg-primary text-white">
+                        <div class="card-body d-flex flex-column justify-content-center p-4">
+                            <h6 class="opacity-75 mb-1">우리 여행 총 지출</h6>
+                            <h2 class="fw-bold mb-3" id="grandTotal">0원</h2>
+                            <div class="d-flex gap-3 border-top pt-3 border-white border-opacity-25">
+                                <div><small class="opacity-75">나:</small> <span id="myTotal">0원</span></div>
+                                <div><small class="opacity-75">동생:</small> <span id="siblingTotal">0원</span></div>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-            <!-- 요약 카드 -->
-            <div class="row mb-4">
-                <div class="col-6">
-                    <div class="card">
-                        <div class="card-body">
-                            <h6 class="card-subtitle text-muted">총 지출 (원화 환산)</h6>
-                            <h3 id="totalAmount" class="mt-2">0원</h3>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6">
-                    <div class="card">
-                        <div class="card-body">
-                            <h6 class="card-subtitle text-muted">최다 지출 카테고리</h6>
-                            <h3 id="topCategory" class="mt-2">-</h3>
+                <div class="col-12 col-md-4">
+                    <div class="card h-100 border-0 shadow-sm" style="background: #fffbe6;">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                            <h6 class="text-warning fw-bold mb-2">💰 정산 알림</h6>
+                            <div id="settlementResult" class="h5 fw-bold text-dark">-</div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- 차트 영역 -->
-            <div class="row mb-4">
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-body">
-                            <h6 class="card-title">카테고리별 지출 비중</h6>
-                            <canvas id="donutChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-body">
-                            <h6 class="card-title">날짜별 누적 지출</h6>
-                            <canvas id="lineChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 지출 입력 폼 -->
-            <div class="card mb-4">
-                <div class="card-body">
-                    <h5 class="card-title">지출 등록</h5>
+            <div class="card mb-4 border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <h5 class="card-title mb-4">✏️ 새 지출 등록</h5>
                     <form id="spendForm">
-                        <div class="row g-2">
-                            <div class="col-md-2">
-                                <input type="date" id="date" class="form-control">
-                                <div class="invalid-feedback">날짜를 입력해주세요.</div>
+                        <div class="row g-3">
+                            <div class="col-6 col-md-2">
+                                <label class="form-label small fw-bold">날짜</label>
+                                <input type="date" id="date" class="form-control border-0 bg-light">
                             </div>
-                            <div class="col-md-3">
-                                <input type="text" id="item" class="form-control" placeholder="항목명 (최대 20자)"
-                                    maxlength="20">
-                                <small class="text-muted"><span id="charCount">0</span>/20</small>
-                                <small id="aiSuggestion" class="text-success fw-bold" style="display:none;"></small>
-                                <div class="invalid-feedback">항목명을 입력해주세요.</div>
-                            </div>
-                            <div class="col-md-2">
-                                <select id="currency" class="form-select">
-                                    <option value="KRW">KRW 원화</option>
-                                    <option value="JPY">JPY 엔화</option>
-                                    <option value="USD">USD 달러</option>
-                                </select>
-                            </div>
-                            <div class="col-md-2">
-                                <input type="number" id="amount" class="form-control" placeholder="금액">
-                                <small id="amountKrw" class="text-muted" style="display:none;"></small>
-                                <div class="invalid-feedback">금액을 입력해주세요.</div>
-                            </div>
-                            <div class="col-md-1">
-                                <select id="payer" class="form-select">
+                            <div class="col-6 col-md-2">
+                                <label class="form-label small fw-bold">결제자</label>
+                                <select id="payer" class="form-select border-0 bg-light">
                                     <option value="나">나</option>
                                     <option value="동생">동생</option>
                                 </select>
                             </div>
-                            <div class="col-md-1">
-                                <select id="category" class="form-select"></select>
+                            <div class="col-12 col-md-3">
+                                <label class="form-label small fw-bold">지출 내용</label>
+                                <input type="text" id="item" class="form-control border-0 bg-light"
+                                    placeholder="예: 이치란 라멘">
                             </div>
-                            <div class="col-md-1">
-                                <button type="submit" class="btn btn-primary w-100">등록</button>
+                            <div class="col-4 col-md-1">
+                                <label class="form-label small fw-bold">통화</label>
+                                <select id="currency" class="form-select border-0 bg-light text-center">
+                                    <option value="KRW">₩</option>
+                                    <option value="JPY">¥</option>
+                                    <option value="USD">$</option>
+                                </select>
+                            </div>
+                            <div class="col-8 col-md-2">
+                                <label class="form-label small fw-bold">금액</label>
+                                <input type="number" id="amount" class="form-control border-0 bg-light"
+                                    placeholder="0">
+                            </div>
+                            <div class="col-6 col-md-2">
+                                <label class="form-label small fw-bold">카테고리</label>
+                                <select id="category" class="form-select border-0 bg-light">
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-2 d-grid align-items-end">
+                                <button type="submit" class="btn btn-primary fw-bold py-2">등록</button>
                             </div>
                         </div>
                     </form>
                 </div>
             </div>
 
-            <!-- 지출 내역 테이블 -->
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">지출 내역</h5>
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <input type="text" id="searchInput" class="form-control" placeholder="🔍 항목명 검색">
-                        </div>
-                        <div class="col-md-3">
-                            <select id="categoryFilter" class="form-select">
-                                <option value="">전체 카테고리</option>
-                            </select>
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-0">
+                    <div class="p-4 d-flex justify-content-between align-items-center border-bottom">
+                        <h5 class="card-title m-0">📜 지출 내역</h5>
+                        <div class="d-flex gap-2">
+                            <input type="text" id="searchInput"
+                                class="form-control form-control-sm border-0 bg-light" placeholder="검색">
                         </div>
                     </div>
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>날짜</th>
-                                <th>항목</th>
-                                <th>금액</th>
-                                <th>원화</th>
-                                <th>카테고리</th>
-                                <th>결제자</th>
-                                <th>삭제</th>
-                            </tr>
-                        </thead>
-                        <tbody id="expenseList">
-                            <!-- jQuery로 동적 추가 -->
-                        </tbody>
-                    </table>
+
+                    <div class="desktop-only p-2">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th>날짜</th>
+                                    <th>항목</th>
+                                    <th>카테고리</th>
+                                    <th>금액</th>
+                                    <th>원화환산</th>
+                                    <th>결제자</th>
+                                    <th class="text-end">관리</th>
+                                </tr>
+                            </thead>
+                            <tbody id="expenseListDesktop">
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="mobile-only" id="expenseListMobile">
+                    </div>
                 </div>
             </div>
 
@@ -196,22 +148,6 @@
                                 <input type="date" id="editDate" class="form-control">
                             </div>
                             <div class="mb-3">
-                                <label class="form-label">항목명</label>
-                                <input type="text" id="editItem" class="form-control" maxlength="20">
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">통화</label>
-                                <select id="editCurrency" class="form-select">
-                                    <option value="KRW">KRW 원화</option>
-                                    <option value="JPY">JPY 엔화</option>
-                                    <option value="USD">USD 달러</option>
-                                </select>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">금액</label>
-                                <input type="number" id="editAmount" class="form-control">
-                            </div>
-                            <div class="mb-3">
                                 <label class="form-label">결제자</label>
                                 <select id="editPayer" class="form-select">
                                     <option value="나">나</option>
@@ -219,8 +155,25 @@
                                 </select>
                             </div>
                             <div class="mb-3">
+                                <label class="form-label">지출 내용</label>
+                                <input type="text" id="editItem" class="form-control" maxlength="20">
+                            </div>
+                            <div class="mb-3">
                                 <label class="form-label">카테고리</label>
-                                <select id="editCategory" class="form-select"></select>
+                                <select id="editCategory" class="form-select">
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">통화</label>
+                                <select id="editCurrency" class="form-select">
+                                    <option value="KRW">₩ KRW</option>
+                                    <option value="JPY">¥ JPY</option>
+                                    <option value="USD">$ USD</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">금액</label>
+                                <input type="number" id="editAmount" class="form-control">
                             </div>
                         </div>
                         <div class="modal-footer">
@@ -249,19 +202,12 @@
                     </div>
                 </div>
             </div>
-
         </main>
     </div>
 
-    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
-    <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Custom JS -->
     <script src="{{ asset('assets/js/app.js') }}"></script>
 </body>
 

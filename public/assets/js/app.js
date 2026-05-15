@@ -11,6 +11,7 @@ $(function () {
     var CSRF_TOKEN = $('meta[name="csrf-token"]').attr("content");
 
     // AI 카테고리 추천 키워드 매핑
+    // 확장 가능한 구조로 설계 — 실제 AI API 연동으로 교체 가능
     var categoryKeywords = {
         식비: [
             "식당",
@@ -53,44 +54,37 @@ $(function () {
         ],
         숙박비: ["호텔", "숙소", "게스트하우스", "료칸", "에어비앤비"],
         입장료: ["입장", "티켓", "관람", "박물관", "전시", "테마파크"],
-        "카페·디저트": [
-            "카페",
-            "디저트",
-            "케이크",
-            "아이스크림",
-            "소프트",
-            "편의점 디저트",
-        ],
+        "카페·디저트": ["카페", "디저트", "케이크", "아이스크림", "소프트"],
         기념품: ["기념품", "마그넷", "엽서", "굿즈"],
         선물: ["선물", "부모님", "친구"],
         기타: [],
     };
 
-    var donutChartInstance = null;
-    var lineChartInstance = null;
     var currentRate = 1;
 
     /* =========================================================
      * 데이터 로딩 함수
      * ========================================================= */
 
+    /**
+     * 지출 목록 불러오기
+     * GET /api/expenses → 테이블 렌더링 + 정산 카드 갱신
+     */
     function loadExpenses() {
         $.ajax({
             url: "/api/expenses",
             method: "GET",
             beforeSend: function () {
                 $("#loadingSpinner").show();
-                $("#expenseList").empty();
             },
             success: function (data) {
                 renderTable(data);
                 calcSummary(data);
-                renderCharts(data);
-                loadSettlement(); // 정산 카드 갱신
+                loadSettlement();
             },
             error: function () {
-                $("#expenseList").html(
-                    '<tr><td colspan="7" class="text-center text-danger">데이터를 불러오지 못했습니다.</td></tr>',
+                $("#expenseListDesktop").html(
+                    '<tr><td colspan="6" class="text-center text-danger">데이터를 불러오지 못했습니다.</td></tr>',
                 );
             },
             complete: function () {
@@ -124,6 +118,10 @@ $(function () {
         });
     }
 
+    /**
+     * 카테고리 Select 옵션 동적 로딩
+     * GET /api/categories → 입력 폼, 수정 모달, 필터 드롭다운에 반영
+     */
     function loadCategoryOptions() {
         $.ajax({
             url: "/api/categories",
@@ -143,6 +141,9 @@ $(function () {
         });
     }
 
+    /**
+     * 카테고리 관리 모달용 목록 불러오기
+     */
     function loadCategories() {
         $.ajax({
             url: "/api/categories",
@@ -167,24 +168,46 @@ $(function () {
      * ========================================================= */
 
     /**
-     * 지출 내역 테이블 렌더링
-     * 컬럼 순서: 날짜(0) | 항목(1) | 금액(2) | 원화(3) | 카테고리(4) | 결제자(5) | 삭제(6)
+     * 지출 내역 테이블 렌더링 (데스크탑 + 모바일)
+     * 데스크탑 컬럼: 날짜(0) | 항목(1) | 금액(2) | 원화환산(3) | 결제자(4) | 관리(5)
      */
     function renderTable(data) {
-        $("#expenseList").empty();
+        $("#expenseListDesktop").empty();
+        $("#expenseListMobile").empty();
+
         $.each(data, function (i, expense) {
+            // 데스크탑 테이블 행
             var row = `
-                <tr data-id="${expense.id}">
-                    <td>${expense.date}</td>
-                    <td>${expense.item}</td>
-                    <td>${Number(expense.amount).toLocaleString()} ${expense.currency}</td>
-                    <td>${Number(expense.amount_krw).toLocaleString()}원</td>
-                    <td>${expense.category}</td>
-                    <td>${expense.payer}</td>
-                    <td><button class="btn btn-sm btn-danger deleteBtn" data-id="${expense.id}">삭제</button></td>
-                </tr>
+    <tr data-id="${expense.id}">
+        <td>${expense.date}</td>
+        <td>${expense.item}</td>
+        <td>${expense.category}</td>
+        <td>${Number(expense.amount).toLocaleString()} ${expense.currency}</td>
+        <td>${Number(expense.amount_krw).toLocaleString()}원</td>
+        <td>${expense.payer}</td>
+        <td class="text-end">
+            <button class="btn btn-sm btn-outline-danger deleteBtn" data-id="${expense.id}">삭제</button>
+        </td>
+    </tr>
+`;
+            $("#expenseListDesktop").append(row);
+
+            // 모바일 카드
+            var card = `
+                <div class="p-3 border-bottom mobile-row" data-id="${expense.id}">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-bold">${expense.item}</div>
+                            <small class="text-muted">${expense.date} · ${expense.payer}</small>
+                        </div>
+                        <div class="text-end">
+                            <div class="fw-bold">${Number(expense.amount).toLocaleString()} ${expense.currency}</div>
+                            <small class="text-muted">${Number(expense.amount_krw).toLocaleString()}원</small>
+                        </div>
+                    </div>
+                </div>
             `;
-            $("#expenseList").append(row);
+            $("#expenseListMobile").append(card);
         });
     }
 
@@ -193,98 +216,10 @@ $(function () {
      */
     function calcSummary(data) {
         var total = 0;
-        var categoryCount = {};
-
         $.each(data, function (i, expense) {
             total += Number(expense.amount_krw);
-            categoryCount[expense.category] =
-                (categoryCount[expense.category] || 0) +
-                Number(expense.amount_krw);
-        });
-
-        $("#totalAmount").text(total.toLocaleString() + "원");
-
-        var topCategory = Object.keys(categoryCount).reduce(
-            (a, b) => (categoryCount[a] > categoryCount[b] ? a : b),
-            "-",
-        );
-        $("#topCategory").text(topCategory);
-    }
-
-    /**
-     * 테이블 행 추가 후 총지출 재계산
-     * amount_krw 컬럼(td:eq(3)) 기준으로 합산
-     */
-    function calcTotal() {
-        var total = 0;
-        $("#expenseList tr").each(function () {
-            var amountText = $(this)
-                .find("td:eq(3)")
-                .text()
-                .replace(/[^0-9]/g, "");
-            total += Number(amountText);
         });
         $("#totalAmount").text(total.toLocaleString() + "원");
-    }
-
-    /**
-     * Chart.js 차트 렌더링 — amount_krw 기준 원화로 표시
-     */
-    function renderCharts(data) {
-        var categoryCount = {};
-        var dateAmount = {};
-
-        $.each(data, function (i, expense) {
-            categoryCount[expense.category] =
-                (categoryCount[expense.category] || 0) +
-                Number(expense.amount_krw);
-            dateAmount[expense.date] =
-                (dateAmount[expense.date] || 0) + Number(expense.amount_krw);
-        });
-
-        var categoryLabels = Object.keys(categoryCount);
-        var categoryData = Object.values(categoryCount);
-        var dateLabels = Object.keys(dateAmount).sort();
-        var dateData = dateLabels.map((d) => dateAmount[d]);
-
-        if (donutChartInstance) donutChartInstance.destroy();
-        donutChartInstance = new Chart(document.getElementById("donutChart"), {
-            type: "doughnut",
-            data: {
-                labels: categoryLabels,
-                datasets: [
-                    {
-                        data: categoryData,
-                        backgroundColor: [
-                            "#FF6384",
-                            "#36A2EB",
-                            "#FFCE56",
-                            "#4BC0C0",
-                            "#9966FF",
-                            "#FF9F40",
-                            "#C9CBCF",
-                        ],
-                    },
-                ],
-            },
-        });
-
-        if (lineChartInstance) lineChartInstance.destroy();
-        lineChartInstance = new Chart(document.getElementById("lineChart"), {
-            type: "line",
-            data: {
-                labels: dateLabels,
-                datasets: [
-                    {
-                        label: "일별 지출 (원화)",
-                        data: dateData,
-                        borderColor: "#36A2EB",
-                        tension: 0.3,
-                        fill: false,
-                    },
-                ],
-            },
-        });
     }
 
     /* =========================================================
@@ -431,25 +366,45 @@ $(function () {
                     _token: CSRF_TOKEN,
                 },
                 success: function (response) {
+                    // 데스크탑 테이블에 행 추가
                     var newRow = `
                         <tr data-id="${response.id}">
                             <td>${date}</td>
                             <td>${item}</td>
                             <td>${Number(amount).toLocaleString()} ${currency}</td>
                             <td>${amount_krw.toLocaleString()}원</td>
-                            <td>${category}</td>
                             <td>${payer}</td>
-                            <td><button class="btn btn-sm btn-danger deleteBtn" data-id="${response.id}">삭제</button></td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-danger deleteBtn" data-id="${response.id}">삭제</button>
+                            </td>
                         </tr>
                     `;
-                    $("#expenseList").prepend(newRow);
+                    $("#expenseListDesktop").prepend(newRow);
+
+                    // 모바일 카드 추가
+                    var newCard = `
+                        <div class="p-3 border-bottom mobile-row" data-id="${response.id}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="fw-bold">${item}</div>
+                                    <small class="text-muted">${date} · ${payer}</small>
+                                </div>
+                                <div class="text-end">
+                                    <div class="fw-bold">${Number(amount).toLocaleString()} ${currency}</div>
+                                    <small class="text-muted">${amount_krw.toLocaleString()}원</small>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    $("#expenseListMobile").prepend(newCard);
+
                     Swal.fire({
                         icon: "success",
                         title: "등록 완료!",
                         timer: 1500,
                         showConfirmButton: false,
                     });
-                    calcTotal();
+                    loadSettlement();
                     $("#spendForm")[0].reset();
                     $("#charCount").text(0);
                     $("#amountKrw").hide();
@@ -469,7 +424,6 @@ $(function () {
         // 동적으로 추가된 요소에 직접 .on() 불가 → document에 위임하여 처리
         $(document).on("click", ".deleteBtn", function () {
             var id = $(this).data("id");
-            var row = $(this).closest("tr");
 
             Swal.fire({
                 title: "정말 삭제할까요?",
@@ -485,16 +439,20 @@ $(function () {
                         method: "DELETE",
                         headers: { "X-CSRF-TOKEN": CSRF_TOKEN },
                         success: function () {
-                            row.fadeOut(300, function () {
-                                $(this).remove();
-                                calcTotal();
-                                Swal.fire({
-                                    icon: "success",
-                                    title: "삭제 완료!",
-                                    timer: 1000,
-                                    showConfirmButton: false,
-                                });
-                            });
+                            // data-id로 데스크탑 행 + 모바일 카드 둘 다 삭제
+                            $("[data-id='" + id + "']").fadeOut(
+                                300,
+                                function () {
+                                    $(this).remove();
+                                    loadSettlement();
+                                    Swal.fire({
+                                        icon: "success",
+                                        title: "삭제 완료!",
+                                        timer: 1000,
+                                        showConfirmButton: false,
+                                    });
+                                },
+                            );
                         },
                         error: function () {
                             Swal.fire({
@@ -509,44 +467,51 @@ $(function () {
         });
 
         // 행 클릭 시 수정 모달 열기
-        // 컬럼 순서: 날짜(0) | 항목(1) | 금액(2) | 원화(3) | 카테고리(4) | 결제자(5)
-        $(document).on("click", "tbody tr", function (e) {
-            if ($(e.target).hasClass("deleteBtn")) return;
+        // DB에서 단건 조회(GET /api/expenses/{id})해서 카테고리 포함 모든 필드 채우기
+        $(document).on(
+            "click",
+            "#expenseListDesktop tr, .mobile-row",
+            function (e) {
+                if ($(e.target).hasClass("deleteBtn")) return;
 
-            var id = $(this).data("id");
-            var date = $(this).find("td:eq(0)").text();
-            var item = $(this).find("td:eq(1)").text();
-            var amountCurrency = $(this)
-                .find("td:eq(2)")
-                .text()
-                .trim()
-                .split(" ");
-            var amount = amountCurrency[0].replace(/[^0-9]/g, "");
-            var currency = amountCurrency[amountCurrency.length - 1];
-            var category = $(this).find("td:eq(4)").text();
-            var payer = $(this).find("td:eq(5)").text();
+                var id = $(this).data("id");
 
-            $("#editId").val(id);
-            $("#editDate").val(date);
-            $("#editItem").val(item);
-            $("#editAmount").val(amount);
-            $("#editCurrency").val(currency);
-            $("#editCategory").val(category);
-            $("#editPayer").val(payer);
-            // 수정 모달 열 때 현재 통화 환율 미리 로딩
-            if (currency !== "KRW") {
                 $.ajax({
-                    url: "/api/exchange-rate/" + currency,
+                    url: "/api/expenses/" + id,
                     method: "GET",
                     success: function (data) {
-                        currentRate = data.rate;
+                        $("#editId").val(data.id);
+                        $("#editDate").val(data.date);
+                        $("#editItem").val(data.item);
+                        $("#editAmount").val(data.amount);
+                        $("#editCurrency").val(data.currency);
+                        $("#editCategory").val(data.category);
+                        $("#editPayer").val(data.payer);
+
+                        if (data.currency !== "KRW") {
+                            $.ajax({
+                                url: "/api/exchange-rate/" + data.currency,
+                                method: "GET",
+                                success: function (rateData) {
+                                    currentRate = rateData.rate;
+                                },
+                            });
+                        } else {
+                            currentRate = 1;
+                        }
+
+                        $("#editModal").modal("show");
+                    },
+                    error: function () {
+                        Swal.fire({
+                            icon: "error",
+                            title: "오류",
+                            text: "데이터를 불러오지 못했습니다.",
+                        });
                     },
                 });
-            } else {
-                currentRate = 1;
-            }
-            $("#editModal").modal("show");
-        });
+            },
+        );
 
         // 수정 저장 — Ajax PATCH → Laravel update() → 성공 시 모달 닫고 목록 새로고침
         $("#editSaveBtn").on("click", function () {
@@ -592,21 +557,43 @@ $(function () {
             });
         });
 
-        // 실시간 검색 — keyup 이벤트로 항목명 컬럼 텍스트 포함 여부 확인
-        $("#searchInput").on("keyup", function () {
-            var keyword = $(this).val().toLowerCase();
-            $("#expenseList tr").each(function () {
-                var item = $(this).find("td:eq(1)").text().toLowerCase();
-                $(this).toggle(item.includes(keyword));
+        // 수정 모달 통화 변경 시 환율 적용
+        $("#editCurrency").on("change", function () {
+            var currency = $(this).val();
+            if (currency === "KRW") {
+                currentRate = 1;
+                return;
+            }
+            $.ajax({
+                url: "/api/exchange-rate/" + currency,
+                method: "GET",
+                success: function (data) {
+                    currentRate = data.rate;
+                },
+                error: function () {
+                    Swal.fire({
+                        icon: "error",
+                        title: "오류",
+                        text: "환율 정보를 가져오지 못했습니다.",
+                    });
+                },
             });
         });
 
-        // 카테고리 필터 — 카테고리 컬럼(td:eq(4)) 기준
-        $("#categoryFilter").on("change", function () {
-            var selected = $(this).val();
-            $("#expenseList tr").each(function () {
-                var category = $(this).find("td:eq(4)").text();
-                $(this).toggle(selected === "" || category === selected);
+        // 실시간 검색 — keyup 이벤트로 항목명 텍스트 포함 여부 확인
+        $("#searchInput").on("keyup", function () {
+            var keyword = $(this).val().toLowerCase();
+            $("#expenseListDesktop tr").each(function () {
+                var item = $(this).find("td:eq(1)").text().toLowerCase();
+                $(this).toggle(item.includes(keyword));
+            });
+            $(".mobile-row").each(function () {
+                var item = $(this)
+                    .find(".fw-bold")
+                    .first()
+                    .text()
+                    .toLowerCase();
+                $(this).toggle(item.includes(keyword));
             });
         });
 
@@ -657,29 +644,6 @@ $(function () {
                 headers: { "X-CSRF-TOKEN": CSRF_TOKEN },
                 success: function () {
                     loadCategories();
-                },
-            });
-        });
-
-        // 수정 모달 통화 변경 시 환율 적용
-        $("#editCurrency").on("change", function () {
-            var currency = $(this).val();
-            if (currency === "KRW") {
-                currentRate = 1;
-                return;
-            }
-            $.ajax({
-                url: "/api/exchange-rate/" + currency,
-                method: "GET",
-                success: function (data) {
-                    currentRate = data.rate;
-                },
-                error: function () {
-                    Swal.fire({
-                        icon: "error",
-                        title: "오류",
-                        text: "환율 정보를 가져오지 못했습니다.",
-                    });
                 },
             });
         });
