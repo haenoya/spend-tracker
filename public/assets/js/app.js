@@ -1,17 +1,7 @@
-/**
- * 여행 정산 서비스 - app.js
- * jQuery를 활용한 프론트엔드 인터랙션 및 Laravel RESTful API 연동
- */
-
 $(function () {
-    /* =========================================================
-     * 상수 및 설정
-     * ========================================================= */
-
     var CSRF_TOKEN = $('meta[name="csrf-token"]').attr("content");
 
-    // AI 카테고리 추천 키워드 매핑
-    // 확장 가능한 구조로 설계 — 실제 AI API 연동으로 교체 가능
+    // AI 카테고리 추천용 키워드 매핑 테이블 (순수 카테고리명 기준)
     var categoryKeywords = {
         식비: [
             "식당",
@@ -30,9 +20,6 @@ $(function () {
             "음식",
             "마트",
             "편의점",
-            "쿠팡이츠",
-            "배민",
-            "배달",
             "라멘",
             "우동",
             "초밥",
@@ -48,13 +35,11 @@ $(function () {
             "고속버스",
             "주유",
             "주차",
-            "톨게이트",
             "신칸센",
             "전철",
         ],
         숙박비: ["호텔", "숙소", "게스트하우스", "료칸", "에어비앤비"],
         입장료: ["입장", "티켓", "관람", "박물관", "전시", "테마파크"],
-        "카페·디저트": ["카페", "디저트", "케이크", "아이스크림", "소프트"],
         기념품: ["기념품", "마그넷", "엽서", "굿즈"],
         선물: ["선물", "부모님", "친구"],
         기타: [],
@@ -64,14 +49,6 @@ $(function () {
     var payerChartInstance = null;
     var categoryChartInstance = null;
 
-    /* =========================================================
-     * 데이터 로딩 함수
-     * ========================================================= */
-
-    /**
-     * 지출 목록 불러오기
-     * GET /api/expenses → 테이블 렌더링 + 정산 카드 갱신
-     */
     function loadExpenses() {
         $.ajax({
             url: "/api/expenses",
@@ -87,7 +64,7 @@ $(function () {
             },
             error: function () {
                 $("#expenseListDesktop").html(
-                    '<tr><td colspan="6" class="text-center text-danger">데이터를 불러오지 못했습니다.</td></tr>',
+                    '<tr><td colspan="7" class="text-center text-danger py-4">데이터를 불러오지 못했습니다.</td></tr>',
                 );
             },
             complete: function () {
@@ -96,10 +73,6 @@ $(function () {
         });
     }
 
-    /**
-     * 정산 현황 불러오기
-     * GET /api/expenses/settlement → 정산 카드 갱신
-     */
     function loadSettlement() {
         $.ajax({
             url: "/api/expenses/settlement",
@@ -108,11 +81,8 @@ $(function () {
                 $("#myTotal").text(data.me.toLocaleString() + "원");
                 $("#siblingTotal").text(data.sibling.toLocaleString() + "원");
                 $("#grandTotal").text(data.total.toLocaleString() + "원");
-                $("#settlementResult").text(
-                    data.who_pays +
-                        "이/가 " +
-                        data.amount.toLocaleString() +
-                        "원 줘야 해요",
+                $("#settlementResult").html(
+                    `<span class="text-primary fw-bold">${data.who_pays}</span>이/가 <span class="text-danger fw-bold">${data.amount.toLocaleString()}원</span> 보내야 해요`,
                 );
             },
             error: function () {
@@ -121,10 +91,6 @@ $(function () {
         });
     }
 
-    /**
-     * 카테고리 Select 옵션 동적 로딩
-     * GET /api/categories → 입력 폼, 수정 모달, 필터 드롭다운에 반영
-     */
     function loadCategoryOptions() {
         $.ajax({
             url: "/api/categories",
@@ -144,9 +110,6 @@ $(function () {
         });
     }
 
-    /**
-     * 카테고리 관리 모달용 목록 불러오기
-     */
     function loadCategories() {
         $.ajax({
             url: "/api/categories",
@@ -154,73 +117,70 @@ $(function () {
             success: function (data) {
                 $("#categoryList").empty();
                 $.each(data, function (i, category) {
+                    // [핵심 변경] 모달 내부 리스트에서 왼쪽 이모지 span 태그를 완전히 제거하고
+                    // 인풋창 안에 들어가 있는 텍스트(예: 🍔 식비)만 깨끗하게 표시합니다.
                     var item = `
-                    <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
-                        <input type="text" class="form-control form-control-sm categoryNameInput" 
-                            data-id="${category.id}" value="${category.name}">
-                        <div class="d-flex gap-1">
-                            <button class="btn btn-sm btn-outline-primary saveCategoryBtn" data-id="${category.id}">저장</button>
-                            <button class="btn btn-sm btn-danger deleteCategoryBtn" data-id="${category.id}">삭제</button>
+                    <li class="category-manage-item d-flex justify-content-between align-items-center gap-2 shadow-sm">
+                        <div class="d-flex align-items-center flex-grow-1">
+                            <input type="text" class="form-control form-control-sm border-0 bg-transparent fw-bold categoryNameInput p-0" 
+                                data-id="${category.id}" value="${category.name}">
                         </div>
-                    </li>
-                `;
+                        <div class="d-flex gap-1">
+                            <button class="btn btn-sm btn-light saveCategoryBtn text-primary fw-bold" data-id="${category.id}">수정</button>
+                            <button class="btn btn-sm btn-link text-danger text-decoration-none deleteCategoryBtn" data-id="${category.id}">✕</button>
+                        </div>
+                    </li>`;
                     $("#categoryList").append(item);
                 });
             },
         });
     }
 
-    /* =========================================================
-     * UI 렌더링 함수
-     * ========================================================= */
-
-    /**
-     * 지출 내역 테이블 렌더링 (데스크탑 + 모바일)
-     * 데스크탑 컬럼: 날짜(0) | 항목(1) | 금액(2) | 원화환산(3) | 결제자(4) | 관리(5)
-     */
     function renderTable(data) {
         $("#expenseListDesktop").empty();
         $("#expenseListMobile").empty();
 
+        if (data.length === 0) {
+            $("#expenseListDesktop").html(
+                '<tr><td colspan="7" class="text-center text-muted py-4">등록된 지출 내역이 없습니다.</td></tr>',
+            );
+            $("#expenseListMobile").html(
+                '<div class="text-center text-muted py-4">등록된 지출 내역이 없습니다.</div>',
+            );
+            return;
+        }
+
         $.each(data, function (i, expense) {
-            // 데스크탑 테이블 행
             var row = `
-    <tr data-id="${expense.id}">
-        <td>${expense.date}</td>
-        <td>${expense.item}</td>
-        <td>${expense.category}</td>
-        <td>${Number(expense.amount).toLocaleString()} ${expense.currency}</td>
-        <td>${Number(expense.amount_krw).toLocaleString()}원</td>
-        <td>${expense.payer}</td>
-        <td class="text-end">
-            <button class="btn btn-sm btn-outline-danger deleteBtn" data-id="${expense.id}">삭제</button>
-        </td>
-    </tr>
-`;
+                <tr data-id="${expense.id}" style="cursor:pointer;">
+                    <td class="text-muted" style="font-size:0.875rem;">${expense.date}</td>
+                    <td class="fw-bold">${expense.item}</td>
+                    <td><span class="badge bg-light text-dark px-2.5 py-1.5 rounded-3 border">${expense.category}</span></td>
+                    <td class="fw-bold">${Number(expense.amount).toLocaleString()} ${expense.currency}</td>
+                    <td class="text-primary fw-bold">${Number(expense.amount_krw).toLocaleString()}원</td>
+                    <td><span class="badge ${expense.payer === "나" ? "bg-primary-subtle text-primary" : "bg-success-subtle text-success"} px-2 py-1">${expense.payer}</span></td>
+                    <td class="text-end" onclick="event.stopPropagation();">
+                        <button class="btn btn-sm btn-light text-danger deleteBtn" data-id="${expense.id}">삭제</button>
+                    </td>
+                </tr>`;
             $("#expenseListDesktop").append(row);
 
-            // 모바일 카드
             var card = `
-                <div class="p-3 border-bottom mobile-row" data-id="${expense.id}">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <div class="fw-bold">${expense.item}</div>
-                            <small class="text-muted">${expense.date} · ${expense.payer}</small>
-                        </div>
-                        <div class="text-end">
-                            <div class="fw-bold">${Number(expense.amount).toLocaleString()} ${expense.currency}</div>
-                            <small class="text-muted">${Number(expense.amount_krw).toLocaleString()}원</small>
-                        </div>
+                <div class="expense-list-item mobile-row" data-id="${expense.id}">
+                    <div class="category-dot"></div>
+                    <div class="expense-info">
+                        <div class="expense-name">${expense.item}</div>
+                        <div class="expense-meta">${expense.date} · ${expense.payer} · <span class="text-dark fw-bold">${expense.category}</span></div>
                     </div>
-                </div>
-            `;
+                    <div class="expense-amount-box">
+                        <div class="amount-main">${Number(expense.amount).toLocaleString()} ${expense.currency}</div>
+                        <div class="amount-sub">${Number(expense.amount_krw).toLocaleString()}원</div>
+                    </div>
+                </div>`;
             $("#expenseListMobile").append(card);
         });
     }
 
-    /**
-     * 요약 카드 갱신 — amount_krw 기준으로 원화 합산
-     */
     function calcSummary(data) {
         var total = 0;
         $.each(data, function (i, expense) {
@@ -229,10 +189,6 @@ $(function () {
         $("#totalAmount").text(total.toLocaleString() + "원");
     }
 
-    /**
-     * Chart.js 차트 렌더링 (데스크탑만 표시)
-     * 결제자별 바 차트 + 카테고리별 도넛 차트
-     */
     function renderCharts(data) {
         var payerCount = { 나: 0, 동생: 0 };
         var categoryCount = {};
@@ -245,7 +201,6 @@ $(function () {
                 Number(expense.amount_krw);
         });
 
-        // 결제자별 바 차트
         if (payerChartInstance) payerChartInstance.destroy();
         payerChartInstance = new Chart(document.getElementById("payerChart"), {
             type: "bar",
@@ -253,28 +208,31 @@ $(function () {
                 labels: ["나", "동생"],
                 datasets: [
                     {
-                        label: "지출 금액 (원)",
                         data: [payerCount["나"], payerCount["동생"]],
                         backgroundColor: ["#4e73df", "#1cc88a"],
-                        borderRadius: 8,
+                        borderRadius: 12,
+                        barThickness: 32,
                     },
                 ],
             },
             options: {
+                responsive: true,
+                maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
                 scales: {
                     y: {
+                        grid: { display: false },
                         ticks: {
-                            callback: function (value) {
-                                return value.toLocaleString() + "원";
+                            callback: function (v) {
+                                return v.toLocaleString() + "원";
                             },
                         },
                     },
+                    x: { grid: { display: false } },
                 },
             },
         });
 
-        // 카테고리별 도넛 차트
         if (categoryChartInstance) categoryChartInstance.destroy();
         categoryChartInstance = new Chart(
             document.getElementById("categoryChart"),
@@ -286,43 +244,46 @@ $(function () {
                         {
                             data: Object.values(categoryCount),
                             backgroundColor: [
-                                "#FF6384",
-                                "#36A2EB",
-                                "#FFCE56",
-                                "#4BC0C0",
-                                "#9966FF",
-                                "#FF9F40",
-                                "#C9CBCF",
+                                "#ff6b6b",
+                                "#4dabf7",
+                                "#ffd43b",
+                                "#20c997",
+                                "#94d82d",
+                                "#f783ac",
+                                "#ee5d5d",
+                                "#748ffc",
                             ],
+                            borderWidth: 0,
                         },
                     ],
                 },
                 options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
                     plugins: {
-                        legend: { position: "bottom" },
+                        legend: {
+                            position: "right",
+                            labels: { boxWidth: 12, padding: 12 },
+                        },
                     },
+                    cutout: "70%",
                 },
             },
         );
     }
 
-    /* =========================================================
-     * 이벤트 바인딩
-     * ========================================================= */
-
     function bindEvents() {
-        // 사이드바 접기/펴기 — toggleClass로 CSS transition 활용
-        $("#sidebarToggle").on("click", function () {
-            $("#sidebar").toggleClass("collapsed");
-        });
+        $("#sidebarToggleMobile, #sidebarToggleDesktop").on(
+            "click",
+            function () {
+                $("#sidebar").toggleClass("collapsed active");
+            },
+        );
 
-        // 항목명 글자 수 실시간 카운트
         $("#item").on("input", function () {
             $("#charCount").text($(this).val().length);
         });
 
-        // AI 카테고리 자동 추천
-        // keyup 이벤트로 입력값과 키워드 매핑 객체 비교 → Select 자동 선택
         $("#item").on("keyup", function () {
             var input = $(this).val().toLowerCase();
             var matched = null;
@@ -340,14 +301,13 @@ $(function () {
             if (matched) {
                 $("#category").val(matched);
                 $("#aiSuggestion")
-                    .text("AI 추천: " + matched)
+                    .text("🪄 자동 분류: " + matched)
                     .fadeIn();
             } else {
                 $("#aiSuggestion").fadeOut();
             }
         });
 
-        // 금액 숫자 외 입력 방지 + 원화 환산 실시간 표시
         $("#amount").on("input", function () {
             $(this).val(
                 $(this)
@@ -365,8 +325,6 @@ $(function () {
             }
         });
 
-        // 통화 변경 시 환율 API 호출
-        // GET /api/exchange-rate/{currency} → currentRate 갱신
         $("#currency").on("change", function () {
             var currency = $(this).val();
             if (currency === "KRW") {
@@ -390,15 +348,13 @@ $(function () {
                 error: function () {
                     Swal.fire({
                         icon: "error",
-                        title: "오류",
+                        title: "환율 오류",
                         text: "환율 정보를 가져오지 못했습니다.",
                     });
                 },
             });
         });
 
-        // 지출 등록 폼 submit
-        // e.preventDefault()로 새로고침 방지 → jQuery 유효성 검사 → Ajax POST
         $("#spendForm").on("submit", function (e) {
             e.preventDefault();
 
@@ -413,7 +369,6 @@ $(function () {
                     ? Number(amount)
                     : Math.round(amount * currentRate);
 
-            // 프론트엔드 1차 유효성 검사 (Bootstrap is-invalid 클래스 활용)
             var isValid = true;
             if (!date) {
                 $("#date").addClass("is-invalid");
@@ -435,7 +390,6 @@ $(function () {
             }
             if (!isValid) return;
 
-            // Ajax POST → Laravel store() → DB 저장
             $.ajax({
                 url: "/api/expenses",
                 method: "POST",
@@ -449,73 +403,34 @@ $(function () {
                     amount_krw,
                     _token: CSRF_TOKEN,
                 },
-                success: function (response) {
-                    // 데스크탑 테이블에 행 추가
-                    var newRow = `
-                        <tr data-id="${response.id}">
-                            <td>${date}</td>
-                            <td>${item}</td>
-                            <td>${Number(amount).toLocaleString()} ${currency}</td>
-                            <td>${amount_krw.toLocaleString()}원</td>
-                            <td>${payer}</td>
-                            <td class="text-end">
-                                <button class="btn btn-sm btn-outline-danger deleteBtn" data-id="${response.id}">삭제</button>
-                            </td>
-                        </tr>
-                    `;
-                    $("#expenseListDesktop").prepend(newRow);
-
-                    // 모바일 카드 추가
-                    var newCard = `
-                        <div class="p-3 border-bottom mobile-row" data-id="${response.id}">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <div class="fw-bold">${item}</div>
-                                    <small class="text-muted">${date} · ${payer}</small>
-                                </div>
-                                <div class="text-end">
-                                    <div class="fw-bold">${Number(amount).toLocaleString()} ${currency}</div>
-                                    <small class="text-muted">${amount_krw.toLocaleString()}원</small>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                    $("#expenseListMobile").prepend(newCard);
-
+                success: function () {
                     Swal.fire({
                         icon: "success",
-                        title: "등록 완료!",
-                        timer: 1500,
+                        title: "지출 기록 완료",
+                        timer: 1200,
                         showConfirmButton: false,
                     });
-                    loadSettlement();
+                    loadExpenses();
                     $("#spendForm")[0].reset();
                     $("#charCount").text(0);
                     $("#amountKrw").hide();
+                    $("#aiSuggestion").hide();
                     currentRate = 1;
-                },
-                error: function () {
-                    Swal.fire({
-                        icon: "error",
-                        title: "오류 발생",
-                        text: "등록에 실패했습니다.",
-                    });
                 },
             });
         });
 
-        // 행 삭제 — 이벤트 위임 방식
-        // 동적으로 추가된 요소에 직접 .on() 불가 → document에 위임하여 처리
-        $(document).on("click", ".deleteBtn", function () {
+        $(document).on("click", ".deleteBtn", function (e) {
+            e.stopPropagation();
             var id = $(this).data("id");
 
             Swal.fire({
-                title: "정말 삭제할까요?",
+                title: "내역을 삭제하시겠습니까?",
                 icon: "warning",
                 showCancelButton: true,
                 confirmButtonText: "삭제",
                 cancelButtonText: "취소",
-                confirmButtonColor: "#d33",
+                confirmButtonColor: "#e74a3b",
             }).then(function (result) {
                 if (result.isConfirmed) {
                     $.ajax({
@@ -523,26 +438,12 @@ $(function () {
                         method: "DELETE",
                         headers: { "X-CSRF-TOKEN": CSRF_TOKEN },
                         success: function () {
-                            // data-id로 데스크탑 행 + 모바일 카드 둘 다 삭제
-                            $("[data-id='" + id + "']").fadeOut(
-                                300,
-                                function () {
-                                    $(this).remove();
-                                    loadSettlement();
-                                    Swal.fire({
-                                        icon: "success",
-                                        title: "삭제 완료!",
-                                        timer: 1000,
-                                        showConfirmButton: false,
-                                    });
-                                },
-                            );
-                        },
-                        error: function () {
+                            loadExpenses();
                             Swal.fire({
-                                icon: "error",
-                                title: "오류 발생",
-                                text: "삭제에 실패했습니다.",
+                                icon: "success",
+                                title: "삭제 완료",
+                                timer: 1000,
+                                showConfirmButton: false,
                             });
                         },
                     });
@@ -550,16 +451,11 @@ $(function () {
             });
         });
 
-        // 행 클릭 시 수정 모달 열기
-        // DB에서 단건 조회(GET /api/expenses/{id})해서 카테고리 포함 모든 필드 채우기
         $(document).on(
             "click",
             "#expenseListDesktop tr, .mobile-row",
-            function (e) {
-                if ($(e.target).hasClass("deleteBtn")) return;
-
+            function () {
                 var id = $(this).data("id");
-
                 $.ajax({
                     url: "/api/expenses/" + id,
                     method: "GET",
@@ -572,36 +468,17 @@ $(function () {
                         $("#editCategory").val(data.category);
                         $("#editPayer").val(data.payer);
 
-                        if (data.currency !== "KRW") {
-                            $.ajax({
-                                url: "/api/exchange-rate/" + data.currency,
-                                method: "GET",
-                                success: function (rateData) {
-                                    currentRate = rateData.rate;
-                                },
-                            });
-                        } else {
-                            currentRate = 1;
-                        }
-
+                        currentRate = data.currency === "KRW" ? 1 : currentRate;
                         $("#editModal").modal("show");
-                    },
-                    error: function () {
-                        Swal.fire({
-                            icon: "error",
-                            title: "오류",
-                            text: "데이터를 불러오지 못했습니다.",
-                        });
                     },
                 });
             },
         );
 
-        // 수정 저장 — Ajax PATCH → Laravel update() → 성공 시 모달 닫고 목록 새로고침
         $("#editSaveBtn").on("click", function () {
             var id = $("#editId").val();
-            var editCurrency = $("#editCurrency").val();
             var editAmount = $("#editAmount").val();
+            var editCurrency = $("#editCurrency").val();
             var editAmountKrw =
                 editCurrency === "KRW"
                     ? Number(editAmount)
@@ -626,45 +503,14 @@ $(function () {
                     loadExpenses();
                     Swal.fire({
                         icon: "success",
-                        title: "수정 완료!",
+                        title: "변경 사항 저장 완료",
                         timer: 1000,
                         showConfirmButton: false,
                     });
                 },
-                error: function () {
-                    Swal.fire({
-                        icon: "error",
-                        title: "오류 발생",
-                        text: "수정에 실패했습니다.",
-                    });
-                },
             });
         });
 
-        // 수정 모달 통화 변경 시 환율 적용
-        $("#editCurrency").on("change", function () {
-            var currency = $(this).val();
-            if (currency === "KRW") {
-                currentRate = 1;
-                return;
-            }
-            $.ajax({
-                url: "/api/exchange-rate/" + currency,
-                method: "GET",
-                success: function (data) {
-                    currentRate = data.rate;
-                },
-                error: function () {
-                    Swal.fire({
-                        icon: "error",
-                        title: "오류",
-                        text: "환율 정보를 가져오지 못했습니다.",
-                    });
-                },
-            });
-        });
-
-        // 실시간 검색 — keyup 이벤트로 항목명 텍스트 포함 여부 확인
         $("#searchInput").on("keyup", function () {
             var keyword = $(this).val().toLowerCase();
             $("#expenseListDesktop tr").each(function () {
@@ -672,28 +518,21 @@ $(function () {
                 $(this).toggle(item.includes(keyword));
             });
             $(".mobile-row").each(function () {
-                var item = $(this)
-                    .find(".fw-bold")
-                    .first()
-                    .text()
-                    .toLowerCase();
+                var item = $(this).find(".expense-name").text().toLowerCase();
                 $(this).toggle(item.includes(keyword));
             });
         });
 
-        // 카테고리 관리 모달 열기
         $("#categoryModalBtn").on("click", function (e) {
             e.preventDefault();
             loadCategories();
             $("#categoryModal").modal("show");
         });
 
-        // 엔터로 카테고리 추가
         $("#newCategory").on("keyup", function (e) {
             if (e.key === "Enter") $("#addCategoryBtn").click();
         });
 
-        // 카테고리 추가
         $("#addCategoryBtn").on("click", function () {
             var name = $("#newCategory").val().trim();
             if (!name) return;
@@ -702,24 +541,21 @@ $(function () {
                 url: "/api/categories",
                 method: "POST",
                 data: { name, _token: CSRF_TOKEN },
-                success: function (response) {
+                success: function () {
                     $("#newCategory").val("");
                     loadCategories();
-                    $("#category, #editCategory, #categoryFilter").append(
-                        `<option value="${response.name}">${response.name}</option>`,
-                    );
+                    loadCategoryOptions();
                 },
                 error: function () {
                     Swal.fire({
                         icon: "error",
-                        title: "오류",
-                        text: "이미 존재하는 카테고리예요.",
+                        title: "중복 오류",
+                        text: "이미 존재하는 카테고리입니다.",
                     });
                 },
             });
         });
 
-        // 카테고리 삭제 — 이벤트 위임
         $(document).on("click", ".deleteCategoryBtn", function () {
             var id = $(this).data("id");
             $.ajax({
@@ -728,11 +564,11 @@ $(function () {
                 headers: { "X-CSRF-TOKEN": CSRF_TOKEN },
                 success: function () {
                     loadCategories();
+                    loadCategoryOptions();
                 },
             });
         });
 
-        // 카테고리 이름 수정
         $(document).on("click", ".saveCategoryBtn", function () {
             var id = $(this).data("id");
             var name = $(".categoryNameInput[data-id='" + id + "']")
@@ -751,25 +587,15 @@ $(function () {
                     loadCategoryOptions();
                     Swal.fire({
                         icon: "success",
-                        title: "수정 완료!",
+                        title: "카테고리 수정 완료",
                         timer: 1000,
                         showConfirmButton: false,
-                    });
-                },
-                error: function () {
-                    Swal.fire({
-                        icon: "error",
-                        title: "오류",
-                        text: "이미 존재하는 카테고리예요.",
                     });
                 },
             });
         });
     }
 
-    /* =========================================================
-     * 초기화
-     * ========================================================= */
     loadExpenses();
     loadCategoryOptions();
     loadSettlement();
