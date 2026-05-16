@@ -61,6 +61,8 @@ $(function () {
     };
 
     var currentRate = 1;
+    var payerChartInstance = null;
+    var categoryChartInstance = null;
 
     /* =========================================================
      * 데이터 로딩 함수
@@ -81,6 +83,7 @@ $(function () {
                 renderTable(data);
                 calcSummary(data);
                 loadSettlement();
+                renderCharts(data);
             },
             error: function () {
                 $("#expenseListDesktop").html(
@@ -152,11 +155,15 @@ $(function () {
                 $("#categoryList").empty();
                 $.each(data, function (i, category) {
                     var item = `
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            ${category.name}
+                    <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
+                        <input type="text" class="form-control form-control-sm categoryNameInput" 
+                            data-id="${category.id}" value="${category.name}">
+                        <div class="d-flex gap-1">
+                            <button class="btn btn-sm btn-outline-primary saveCategoryBtn" data-id="${category.id}">저장</button>
                             <button class="btn btn-sm btn-danger deleteCategoryBtn" data-id="${category.id}">삭제</button>
-                        </li>
-                    `;
+                        </div>
+                    </li>
+                `;
                     $("#categoryList").append(item);
                 });
             },
@@ -220,6 +227,83 @@ $(function () {
             total += Number(expense.amount_krw);
         });
         $("#totalAmount").text(total.toLocaleString() + "원");
+    }
+
+    /**
+     * Chart.js 차트 렌더링 (데스크탑만 표시)
+     * 결제자별 바 차트 + 카테고리별 도넛 차트
+     */
+    function renderCharts(data) {
+        var payerCount = { 나: 0, 동생: 0 };
+        var categoryCount = {};
+
+        $.each(data, function (i, expense) {
+            payerCount[expense.payer] =
+                (payerCount[expense.payer] || 0) + Number(expense.amount_krw);
+            categoryCount[expense.category] =
+                (categoryCount[expense.category] || 0) +
+                Number(expense.amount_krw);
+        });
+
+        // 결제자별 바 차트
+        if (payerChartInstance) payerChartInstance.destroy();
+        payerChartInstance = new Chart(document.getElementById("payerChart"), {
+            type: "bar",
+            data: {
+                labels: ["나", "동생"],
+                datasets: [
+                    {
+                        label: "지출 금액 (원)",
+                        data: [payerCount["나"], payerCount["동생"]],
+                        backgroundColor: ["#4e73df", "#1cc88a"],
+                        borderRadius: 8,
+                    },
+                ],
+            },
+            options: {
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: {
+                        ticks: {
+                            callback: function (value) {
+                                return value.toLocaleString() + "원";
+                            },
+                        },
+                    },
+                },
+            },
+        });
+
+        // 카테고리별 도넛 차트
+        if (categoryChartInstance) categoryChartInstance.destroy();
+        categoryChartInstance = new Chart(
+            document.getElementById("categoryChart"),
+            {
+                type: "doughnut",
+                data: {
+                    labels: Object.keys(categoryCount),
+                    datasets: [
+                        {
+                            data: Object.values(categoryCount),
+                            backgroundColor: [
+                                "#FF6384",
+                                "#36A2EB",
+                                "#FFCE56",
+                                "#4BC0C0",
+                                "#9966FF",
+                                "#FF9F40",
+                                "#C9CBCF",
+                            ],
+                        },
+                    ],
+                },
+                options: {
+                    plugins: {
+                        legend: { position: "bottom" },
+                    },
+                },
+            },
+        );
     }
 
     /* =========================================================
@@ -644,6 +728,40 @@ $(function () {
                 headers: { "X-CSRF-TOKEN": CSRF_TOKEN },
                 success: function () {
                     loadCategories();
+                },
+            });
+        });
+
+        // 카테고리 이름 수정
+        $(document).on("click", ".saveCategoryBtn", function () {
+            var id = $(this).data("id");
+            var name = $(".categoryNameInput[data-id='" + id + "']")
+                .val()
+                .trim();
+            if (!name) return;
+
+            $.ajax({
+                url: "/api/categories/" + id,
+                method: "PATCH",
+                headers: { "X-CSRF-TOKEN": CSRF_TOKEN },
+                contentType: "application/json",
+                data: JSON.stringify({ name: name }),
+                success: function () {
+                    loadCategories();
+                    loadCategoryOptions();
+                    Swal.fire({
+                        icon: "success",
+                        title: "수정 완료!",
+                        timer: 1000,
+                        showConfirmButton: false,
+                    });
+                },
+                error: function () {
+                    Swal.fire({
+                        icon: "error",
+                        title: "오류",
+                        text: "이미 존재하는 카테고리예요.",
+                    });
                 },
             });
         });

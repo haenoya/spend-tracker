@@ -30,6 +30,7 @@
 
         <main class="flex-grow-1 p-3 p-md-4">
 
+            <!-- 정산 카드 -->
             <div class="row g-3 mb-4">
                 <div class="col-12 col-md-8">
                     <div class="card h-100 bg-primary text-white">
@@ -53,6 +54,27 @@
                 </div>
             </div>
 
+            <!-- 차트 영역 (데스크탑만) -->
+            <div class="row g-3 mb-4 desktop-only">
+                <div class="col-md-6">
+                    <div class="card h-100 border-0 shadow-sm">
+                        <div class="card-body">
+                            <h6 class="card-title fw-bold mb-3">💳 결제자별 지출</h6>
+                            <canvas id="payerChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card h-100 border-0 shadow-sm">
+                        <div class="card-body">
+                            <h6 class="card-title fw-bold mb-3">🗂 카테고리별 지출</h6>
+                            <canvas id="categoryChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 지출 등록 폼 -->
             <div class="card mb-4 border-0 shadow-sm">
                 <div class="card-body p-4">
                     <h5 class="card-title mb-4">✏️ 새 지출 등록</h5>
@@ -73,6 +95,11 @@
                                 <label class="form-label small fw-bold">지출 내용</label>
                                 <input type="text" id="item" class="form-control border-0 bg-light"
                                     placeholder="예: 이치란 라멘">
+                                <small class="text-muted">
+                                    <span id="charCount">0</span>/20
+                                    <span id="aiSuggestion" class="text-success fw-bold ms-2"
+                                        style="display:none;"></span>
+                                </small>
                             </div>
                             <div class="col-4 col-md-1">
                                 <label class="form-label small fw-bold">통화</label>
@@ -86,13 +113,14 @@
                                 <label class="form-label small fw-bold">금액</label>
                                 <input type="number" id="amount" class="form-control border-0 bg-light"
                                     placeholder="0">
+                                <small id="amountKrw" class="text-muted" style="display:none;"></small>
                             </div>
                             <div class="col-6 col-md-2">
                                 <label class="form-label small fw-bold">카테고리</label>
                                 <select id="category" class="form-select border-0 bg-light">
                                 </select>
                             </div>
-                            <div class="col-12 col-md-2 d-grid align-items-end">
+                            <div class="col-6 col-md-2 d-grid align-items-end">
                                 <button type="submit" class="btn btn-primary fw-bold py-2">등록</button>
                             </div>
                         </div>
@@ -100,6 +128,7 @@
                 </div>
             </div>
 
+            <!-- 지출 내역 테이블 -->
             <div class="card border-0 shadow-sm">
                 <div class="card-body p-0">
                     <div class="p-4 d-flex justify-content-between align-items-center border-bottom">
@@ -107,6 +136,12 @@
                         <div class="d-flex gap-2">
                             <input type="text" id="searchInput"
                                 class="form-control form-control-sm border-0 bg-light" placeholder="검색">
+                        </div>
+                    </div>
+
+                    <div id="loadingSpinner" class="text-center my-3" style="display:none;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">로딩 중...</span>
                         </div>
                     </div>
 
@@ -202,12 +237,14 @@
                     </div>
                 </div>
             </div>
+
         </main>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="{{ asset('assets/js/app.js') }}"></script>
 </body>
 

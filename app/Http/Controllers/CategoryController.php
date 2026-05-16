@@ -30,6 +30,21 @@ class CategoryController extends Controller
         return response()->json(['id' => $id, 'name' => $request->name], 201);
     }
 
+    // 수정
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'name' => 'required|max:20|unique:categories,name,' . $id,
+        ]);
+
+        DB::table('categories')->where('id', $id)->update([
+            'name'       => $request->name,
+            'updated_at' => now(),
+        ]);
+
+        return response()->json(['message' => '수정 완료']);
+    }
+
     // 삭제
     public function destroy($id)
     {

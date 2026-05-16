@@ -11,11 +11,13 @@ Route::get('/expenses', [ExpenseController::class, 'index']);
 Route::post('/expenses', [ExpenseController::class, 'store']);
 Route::get('/expenses/settlement', [ExpenseController::class, 'settlement']);
 Route::get('/expenses/{id}', [ExpenseController::class, 'show']);
-Route::delete('/expenses/{id}', [ExpenseController::class, 'destroy']);
 Route::patch('/expenses/{id}', [ExpenseController::class, 'update']);
+Route::delete('/expenses/{id}', [ExpenseController::class, 'destroy']);
+
 
 Route::get('/categories', [CategoryController::class, 'index']);
 Route::post('/categories', [CategoryController::class, 'store']);
+Route::patch('/categories/{id}', [CategoryController::class, 'update']);
 Route::delete('/categories/{id}', [CategoryController::class, 'destroy']);
 
 Route::get('/exchange-rate/{currency}', [ExchangeRateController::class, 'show']);
