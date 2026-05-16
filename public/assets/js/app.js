@@ -1,7 +1,7 @@
 $(function () {
     var CSRF_TOKEN = $('meta[name="csrf-token"]').attr("content");
 
-    // AI 카테고리 추천용 키워드 매핑 테이블 (순수 카테고리명 기준)
+    // AI 카테고리 추천용 키워드 매핑 테이블
     var categoryKeywords = {
         식비: [
             "식당",
@@ -49,6 +49,10 @@ $(function () {
     var payerChartInstance = null;
     var categoryChartInstance = null;
 
+    /* =========================================================
+     * 데이터 로딩 함수
+     * ========================================================= */
+
     function loadExpenses() {
         $.ajax({
             url: "/api/expenses",
@@ -84,6 +88,11 @@ $(function () {
                 $("#settlementResult").html(
                     `<span class="text-primary fw-bold">${data.who_pays}</span>이/가 <span class="text-danger fw-bold">${data.amount.toLocaleString()}원</span> 보내야 해요`,
                 );
+
+                var suffix = data.who_pays === "나" ? "는" : "이";
+                $("#settlementResult").html(
+                    `<span class="text-primary fw-bold">${data.who_pays}</span>${suffix} <span class="text-danger fw-bold">${data.amount.toLocaleString()}원</span> 보내야 해요`,
+                );
             },
             error: function () {
                 $("#settlementResult").text("정산 정보를 불러오지 못했습니다.");
@@ -96,15 +105,10 @@ $(function () {
             url: "/api/categories",
             method: "GET",
             success: function (data) {
-                $("#category, #editCategory, #categoryFilter").empty();
-                $("#categoryFilter").append(
-                    '<option value="">전체 카테고리</option>',
-                );
+                $("#category, #editCategory").empty();
                 $.each(data, function (i, category) {
                     var option = `<option value="${category.name}">${category.name}</option>`;
-                    $("#category, #editCategory, #categoryFilter").append(
-                        option,
-                    );
+                    $("#category, #editCategory").append(option);
                 });
             },
         });
@@ -117,25 +121,31 @@ $(function () {
             success: function (data) {
                 $("#categoryList").empty();
                 $.each(data, function (i, category) {
-                    // [핵심 변경] 모달 내부 리스트에서 왼쪽 이모지 span 태그를 완전히 제거하고
-                    // 인풋창 안에 들어가 있는 텍스트(예: 🍔 식비)만 깨끗하게 표시합니다.
                     var item = `
-                    <li class="category-manage-item d-flex justify-content-between align-items-center gap-2 shadow-sm">
-                        <div class="d-flex align-items-center flex-grow-1">
-                            <input type="text" class="form-control form-control-sm border-0 bg-transparent fw-bold categoryNameInput p-0" 
-                                data-id="${category.id}" value="${category.name}">
-                        </div>
-                        <div class="d-flex gap-1">
-                            <button class="btn btn-sm btn-light saveCategoryBtn text-primary fw-bold" data-id="${category.id}">수정</button>
-                            <button class="btn btn-sm btn-link text-danger text-decoration-none deleteCategoryBtn" data-id="${category.id}">✕</button>
-                        </div>
-                    </li>`;
+                        <li class="category-manage-item d-flex justify-content-between align-items-center gap-2 shadow-sm">
+                            <div class="d-flex align-items-center flex-grow-1">
+                                <input type="text" class="form-control form-control-sm border-0 bg-transparent fw-bold categoryNameInput p-0"
+                                    data-id="${category.id}" value="${category.name}">
+                            </div>
+                            <div class="d-flex gap-1">
+                                <button class="btn btn-sm btn-light saveCategoryBtn text-primary fw-bold" data-id="${category.id}">수정</button>
+                                <button class="btn btn-sm btn-link text-danger text-decoration-none deleteCategoryBtn" data-id="${category.id}">✕</button>
+                            </div>
+                        </li>`;
                     $("#categoryList").append(item);
                 });
             },
         });
     }
 
+    /* =========================================================
+     * UI 렌더링 함수
+     * ========================================================= */
+
+    /**
+     * 지출 내역 테이블 렌더링
+     * 데스크탑 컬럼: 날짜(0) | 항목(1) | 카테고리(2) | 금액(3) | 원화(4) | 결제자(5) | 삭제(6)
+     */
     function renderTable(data) {
         $("#expenseListDesktop").empty();
         $("#expenseListMobile").empty();
@@ -151,32 +161,37 @@ $(function () {
         }
 
         $.each(data, function (i, expense) {
+            // 데스크탑 행 — 삭제 버튼 td에 onclick stopPropagation 제거
             var row = `
                 <tr data-id="${expense.id}" style="cursor:pointer;">
                     <td class="text-muted" style="font-size:0.875rem;">${expense.date}</td>
                     <td class="fw-bold">${expense.item}</td>
-                    <td><span class="badge bg-light text-dark px-2.5 py-1.5 rounded-3 border">${expense.category}</span></td>
+                    <td><span class="badge bg-light text-dark rounded-3 border">${expense.category}</span></td>
                     <td class="fw-bold">${Number(expense.amount).toLocaleString()} ${expense.currency}</td>
                     <td class="text-primary fw-bold">${Number(expense.amount_krw).toLocaleString()}원</td>
                     <td><span class="badge ${expense.payer === "나" ? "bg-primary-subtle text-primary" : "bg-success-subtle text-success"} px-2 py-1">${expense.payer}</span></td>
-                    <td class="text-end" onclick="event.stopPropagation();">
+                    <td class="text-end">
                         <button class="btn btn-sm btn-light text-danger deleteBtn" data-id="${expense.id}">삭제</button>
                     </td>
                 </tr>`;
             $("#expenseListDesktop").append(row);
 
+            // 모바일 카드
             var card = `
-                <div class="expense-list-item mobile-row" data-id="${expense.id}">
-                    <div class="category-dot"></div>
-                    <div class="expense-info">
-                        <div class="expense-name">${expense.item}</div>
-                        <div class="expense-meta">${expense.date} · ${expense.payer} · <span class="text-dark fw-bold">${expense.category}</span></div>
+                <div class="p-3 border-bottom mobile-row" data-id="${expense.id}">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-bold expense-name">${expense.item}</div>
+                            <small class="text-muted">${expense.date} · ${expense.payer} · <span class="text-primary">${expense.category}</span></small>
+                        </div>
+                        <div class="text-end d-flex flex-column align-items-end">
+                            <div class="fw-bold amount-main">${Number(expense.amount).toLocaleString()} ${expense.currency}</div>
+                            <small class="text-muted amount-sub">${Number(expense.amount_krw).toLocaleString()}원</small>
+                            <button class="btn btn-link text-danger p-0 mt-1 small deleteBtn" data-id="${expense.id}" style="font-size: 0.8rem; text-decoration: none;">삭제</button>
+                        </div>
                     </div>
-                    <div class="expense-amount-box">
-                        <div class="amount-main">${Number(expense.amount).toLocaleString()} ${expense.currency}</div>
-                        <div class="amount-sub">${Number(expense.amount_krw).toLocaleString()}원</div>
-                    </div>
-                </div>`;
+                </div>
+            `;
             $("#expenseListMobile").append(card);
         });
     }
@@ -189,6 +204,10 @@ $(function () {
         $("#totalAmount").text(total.toLocaleString() + "원");
     }
 
+    /**
+     * Chart.js 차트 렌더링 (데스크탑만 desktop-only 클래스로 숨김)
+     * 결제자별 바 차트 + 카테고리별 도넛 차트
+     */
     function renderCharts(data) {
         var payerCount = { 나: 0, 동생: 0 };
         var categoryCount = {};
@@ -272,7 +291,12 @@ $(function () {
         );
     }
 
+    /* =========================================================
+     * 이벤트 바인딩
+     * ========================================================= */
+
     function bindEvents() {
+        // 사이드바 접기/펴기
         $("#sidebarToggleMobile, #sidebarToggleDesktop").on(
             "click",
             function () {
@@ -280,10 +304,12 @@ $(function () {
             },
         );
 
+        // 항목명 글자 수 카운트
         $("#item").on("input", function () {
             $("#charCount").text($(this).val().length);
         });
 
+        // AI 카테고리 자동 추천 — keyup으로 키워드 매핑 비교
         $("#item").on("keyup", function () {
             var input = $(this).val().toLowerCase();
             var matched = null;
@@ -308,6 +334,7 @@ $(function () {
             }
         });
 
+        // 금액 숫자 외 입력 방지 + 원화 환산 실시간 표시
         $("#amount").on("input", function () {
             $(this).val(
                 $(this)
@@ -325,6 +352,7 @@ $(function () {
             }
         });
 
+        // 통화 변경 시 환율 API 호출
         $("#currency").on("change", function () {
             var currency = $(this).val();
             if (currency === "KRW") {
@@ -339,9 +367,14 @@ $(function () {
                     currentRate = data.rate;
                     var amount = $("#amount").val();
                     if (amount) {
-                        var krw = Math.round(amount * currentRate);
                         $("#amountKrw")
-                            .text("≈ " + krw.toLocaleString() + "원")
+                            .text(
+                                "≈ " +
+                                    Math.round(
+                                        amount * currentRate,
+                                    ).toLocaleString() +
+                                    "원",
+                            )
                             .show();
                     }
                 },
@@ -355,6 +388,8 @@ $(function () {
             });
         });
 
+        // 지출 등록 폼 submit
+        // e.preventDefault()로 새로고침 방지 → 유효성 검사 → Ajax POST
         $("#spendForm").on("submit", function (e) {
             e.preventDefault();
 
@@ -417,9 +452,18 @@ $(function () {
                     $("#aiSuggestion").hide();
                     currentRate = 1;
                 },
+                error: function () {
+                    Swal.fire({
+                        icon: "error",
+                        title: "오류 발생",
+                        text: "등록에 실패했습니다.",
+                    });
+                },
             });
         });
 
+        // 행 삭제 — 이벤트 위임 방식
+        // 동적으로 추가된 요소에 직접 .on() 불가 → document에 위임
         $(document).on("click", ".deleteBtn", function (e) {
             e.stopPropagation();
             var id = $(this).data("id");
@@ -446,15 +490,30 @@ $(function () {
                                 showConfirmButton: false,
                             });
                         },
+                        error: function () {
+                            Swal.fire({
+                                icon: "error",
+                                title: "오류 발생",
+                                text: "삭제에 실패했습니다.",
+                            });
+                        },
                     });
                 }
             });
         });
 
+        // 행 클릭 시 수정 모달 열기
+        // deleteBtn 클릭 시 제외 처리 — e.target 또는 closest로 확인
         $(document).on(
             "click",
             "#expenseListDesktop tr, .mobile-row",
-            function () {
+            function (e) {
+                if (
+                    $(e.target).hasClass("deleteBtn") ||
+                    $(e.target).closest(".deleteBtn").length
+                )
+                    return;
+
                 var id = $(this).data("id");
                 $.ajax({
                     url: "/api/expenses/" + id,
@@ -468,13 +527,24 @@ $(function () {
                         $("#editCategory").val(data.category);
                         $("#editPayer").val(data.payer);
 
-                        currentRate = data.currency === "KRW" ? 1 : currentRate;
+                        if (data.currency !== "KRW") {
+                            $.ajax({
+                                url: "/api/exchange-rate/" + data.currency,
+                                method: "GET",
+                                success: function (rateData) {
+                                    currentRate = rateData.rate;
+                                },
+                            });
+                        } else {
+                            currentRate = 1;
+                        }
                         $("#editModal").modal("show");
                     },
                 });
             },
         );
 
+        // 수정 저장 — Ajax PATCH → Laravel update() → 성공 시 모달 닫고 목록 새로고침
         $("#editSaveBtn").on("click", function () {
             var id = $("#editId").val();
             var editAmount = $("#editAmount").val();
@@ -508,9 +578,33 @@ $(function () {
                         showConfirmButton: false,
                     });
                 },
+                error: function () {
+                    Swal.fire({
+                        icon: "error",
+                        title: "오류 발생",
+                        text: "수정에 실패했습니다.",
+                    });
+                },
             });
         });
 
+        // 수정 모달 통화 변경 시 환율 갱신
+        $("#editCurrency").on("change", function () {
+            var currency = $(this).val();
+            if (currency === "KRW") {
+                currentRate = 1;
+                return;
+            }
+            $.ajax({
+                url: "/api/exchange-rate/" + currency,
+                method: "GET",
+                success: function (data) {
+                    currentRate = data.rate;
+                },
+            });
+        });
+
+        // 실시간 검색 — keyup 이벤트로 항목명 포함 여부 확인
         $("#searchInput").on("keyup", function () {
             var keyword = $(this).val().toLowerCase();
             $("#expenseListDesktop tr").each(function () {
@@ -523,16 +617,19 @@ $(function () {
             });
         });
 
+        // 카테고리 관리 모달 열기
         $("#categoryModalBtn").on("click", function (e) {
             e.preventDefault();
             loadCategories();
             $("#categoryModal").modal("show");
         });
 
+        // 엔터로 카테고리 추가
         $("#newCategory").on("keyup", function (e) {
             if (e.key === "Enter") $("#addCategoryBtn").click();
         });
 
+        // 카테고리 추가
         $("#addCategoryBtn").on("click", function () {
             var name = $("#newCategory").val().trim();
             if (!name) return;
@@ -556,6 +653,7 @@ $(function () {
             });
         });
 
+        // 카테고리 삭제 — 이벤트 위임
         $(document).on("click", ".deleteCategoryBtn", function () {
             var id = $(this).data("id");
             $.ajax({
@@ -569,6 +667,7 @@ $(function () {
             });
         });
 
+        // 카테고리 수정 — 이벤트 위임
         $(document).on("click", ".saveCategoryBtn", function () {
             var id = $(this).data("id");
             var name = $(".categoryNameInput[data-id='" + id + "']")
@@ -592,10 +691,20 @@ $(function () {
                         showConfirmButton: false,
                     });
                 },
+                error: function () {
+                    Swal.fire({
+                        icon: "error",
+                        title: "중복 오류",
+                        text: "이미 존재하는 카테고리입니다.",
+                    });
+                },
             });
         });
     }
 
+    /* =========================================================
+     * 초기화
+     * ========================================================= */
     loadExpenses();
     loadCategoryOptions();
     loadSettlement();

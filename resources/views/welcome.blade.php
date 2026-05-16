@@ -51,10 +51,12 @@
                 </div>
                 <div class="col-12 col-md-4">
                     <div class="card h-100 border-0 shadow-sm"
-                        style="background: #fffbeb; border-left: 5px solid #f59e0b !important;">
-                        <div class="card-body d-flex flex-column align-items-start justify-content-center p-4">
+                        style="background: #fffbeb; border-left: 5px solid #f59e0b !important; min-height: 110px;">
+                        <div class="card-body d-flex flex-column align-items-start justify-content-center p-4"
+                            style="position: relative; z-index: 10;">
                             <h6 class="text-warning fw-bold mb-2">💰 최종 정산 알림</h6>
-                            <div id="settlementResult" class="h4 fw-bold text-dark m-0">-</div>
+                            <div id="settlementResult" class="h4 fw-bold text-dark m-0"
+                                style="line-height: 1.4; word-break: keep-all;">-</div>
                         </div>
                     </div>
                 </div>
@@ -87,7 +89,7 @@
                 <div class="card-body p-4">
                     <h5 class="card-title mb-4">✏️ 새 지출 등록</h5>
                     <form id="spendForm">
-                        <div class="row g-3 align-items-end">
+                        <div class="row g-3">
                             <div class="col-6 col-md-2">
                                 <label class="form-label small fw-bold text-muted mb-1">날짜</label>
                                 <input type="date" id="date" class="form-control bg-light border-0">
@@ -131,7 +133,7 @@
                                 <select id="category" class="form-select bg-light border-0"></select>
                             </div>
 
-                            <div class="col-12 col-md-12 d-grid mt-3 mt-md-4">
+                            <div class="col-12 d-grid mt-4">
                                 <button type="submit" class="btn btn-primary fw-bold py-2.5 rounded-3 shadow-sm"
                                     style="font-size: 1rem;">
                                     💸 등록하기
@@ -241,6 +243,7 @@
                     </div>
                 </div>
             </div>
+
             <div class="modal fade" id="categoryModal" tabindex="-1">
                 <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
                     <div class="modal-content border-0">

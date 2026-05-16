@@ -11,7 +11,10 @@ class ExpenseController extends Controller
     // 목록 조회
     public function index()
     {
-        $expenses = DB::table('expenses')->orderBy('date', 'desc')->get();
+        $expenses = DB::table('expenses')
+            ->orderBy('date', 'desc')
+            ->orderBy('id', 'desc')
+            ->get();
         return response()->json($expenses);
     }
 
