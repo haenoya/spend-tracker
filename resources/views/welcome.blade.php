@@ -60,7 +60,7 @@
                 </div>
             </div>
 
-            <div class="row g-3 mb-4">
+            <div class="row g-3 mb-4 desktop-only">
                 <div class="col-12 col-md-6">
                     <div class="card border-0 shadow-sm">
                         <div class="card-body p-4">
