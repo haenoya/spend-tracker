@@ -1,66 +1,193 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# ✈️ 여행 정산 서비스
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+> 실제 기타큐슈 여행에서 사용한 2인 여행 지출 정산 웹 서비스
 
-## About Laravel
+<br>
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 📌 프로젝트 개요
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+친구/가족과 여행 시 발생하는 지출을 기록하고, 누가 얼마를 더 냈는지 자동으로 계산해주는 정산 서비스입니다.  
+다중 통화(KRW/JPY/USD) 지원 및 실시간 환율 자동 환산 기능을 통해 해외여행 정산을 간편하게 처리합니다.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+<br>
 
-## Learning Laravel
+## 🚀 주요 기능
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+| 기능                 | 설명                                                     |
+| -------------------- | -------------------------------------------------------- |
+| 지출 등록/수정/삭제  | jQuery Ajax로 페이지 새로고침 없이 실시간 CRUD 처리      |
+| 다중 통화 지원       | KRW / JPY / USD 선택 후 실시간 환율 API로 원화 자동 환산 |
+| 자동 정산 계산       | 각자 지출 합산 후 차액의 절반을 정산 금액으로 자동 계산  |
+| AI 카테고리 추천     | 항목명 입력 시 키워드 분석으로 카테고리 자동 선택        |
+| 실시간 검색          | keyup 이벤트로 지출 내역 즉시 필터링                     |
+| 시각화 대시보드      | 결제자별 바 차트 + 카테고리별 도넛 차트 (데스크탑)       |
+| 반응형 UI            | 데스크탑은 테이블, 모바일은 카드 피드 형태로 분기        |
+| 사용자 정의 카테고리 | DB 기반 카테고리 추가/수정/삭제, Select 옵션 동적 렌더링 |
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+<br>
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## 🛠 기술 스택
 
-## Laravel Sponsors
+### Backend
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+- **Language:** PHP 8.1
+- **Framework:** Laravel 10.x
+    - FormRequest로 유효성 검사 로직을 Controller에서 분리 (단일 책임 원칙)
+    - RESTful API 설계 (GET / POST / PATCH / DELETE)
+- **Database:** MySQL
 
-### Premium Partners
+### Frontend
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+- **HTML5 / CSS3**
+- **JavaScript / jQuery 3.7**
+    - `$.ajax`를 활용한 비동기 통신으로 SPA에 준하는 UX 구현
+    - 이벤트 위임 패턴으로 동적 생성 요소의 이벤트 처리
+    - `fadeOut().remove()` 등 jQuery 애니메이션으로 인터랙션 강화
+- **Bootstrap 5:** 반응형 레이아웃, Modal, Spinner 컴포넌트 활용
+- **Chart.js:** 결제자별 바 차트, 카테고리별 도넛 차트
+- **SweetAlert2:** 등록/삭제/수정 알림 UI
 
-## Contributing
+### External API
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+- **ExchangeRate API:** 실시간 환율 정보 조회 (JPY, USD → KRW 환산)
 
-## Code of Conduct
+### Environment
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+- **Apache** (로컬 개발 환경)
+- **MySQL**
 
-## Security Vulnerabilities
+<br>
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## 📁 프로젝트 구조
 
-## License
+```
+spend-tracker/
+├── app/
+│   ├── Http/
+│   │   ├── Controllers/
+│   │   │   ├── ExpenseController.php      # 지출 CRUD + 정산 계산 API
+│   │   │   ├── CategoryController.php     # 카테고리 CRUD API
+│   │   │   └── ExchangeRateController.php # 환율 API 연동
+│   │   └── Requests/
+│   │       ├── StoreExpenseRequest.php    # 등록 유효성 검사
+│   │       └── UpdateExpenseRequest.php   # 수정 유효성 검사
+├── database/
+│   ├── migrations/
+│   │   ├── create_expenses_table.php      # id, date, item, amount, currency, amount_krw, payer, category
+│   │   └── create_categories_table.php
+│   └── seeders/
+│       ├── ExpenseSeeder.php
+│       └── CategorySeeder.php
+├── public/
+│   └── assets/
+│       ├── css/style.css
+│       └── js/app.js                      # jQuery 인터랙션 메인 파일
+└── resources/
+    └── views/
+        └── welcome.blade.php              # 메인 화면 (단일 페이지)
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+<br>
+
+## ⚙️ 설치 및 실행
+
+```bash
+# 1. 저장소 클론
+git clone https://github.com/haenoya/spend-tracker.git
+cd spend-tracker
+
+# 2. 의존성 설치
+composer install
+
+# 3. 환경 설정
+cp .env.example .env
+php artisan key:generate
+
+# 4. .env 파일에서 DB 및 환율 API 키 설정
+DB_DATABASE=spend_tracker
+DB_USERNAME=root
+DB_PASSWORD=
+EXCHANGE_API_KEY=your_api_key_here
+
+# 5. DB 생성 후 마이그레이션 및 시더 실행
+php artisan migrate
+php artisan db:seed
+
+# 6. 서버 실행
+php artisan serve
+```
+
+<br>
+
+## 🔥 트러블슈팅
+
+### 1. 동적 생성 요소에 이벤트가 적용되지 않는 문제
+
+**문제:** Ajax로 테이블에 추가한 행의 삭제 버튼에 `.on('click')` 이벤트가 동작하지 않음  
+**원인:** jQuery는 이벤트 바인딩 시점에 존재하는 요소에만 이벤트를 등록함  
+**해결:** 이벤트 위임 패턴으로 상위 요소인 `document`에 이벤트를 위임
+
+```javascript
+// ❌ 동적 요소에 직접 바인딩 — 작동 안 함
+$('.deleteBtn').on('click', function() { ... });
+
+// ✅ 이벤트 위임 — 동적 요소에도 작동
+$(document).on('click', '.deleteBtn', function() { ... });
+```
+
+### 2. Laravel Ajax PATCH 요청 실패
+
+**문제:** jQuery Ajax로 PATCH 요청 시 `MethodNotAllowedHttpException` 발생  
+**원인:** `contentType`을 `application/json`으로 설정하지 않아 Laravel이 요청 본문을 파싱하지 못함  
+**해결:** `contentType: 'application/json'` + `data: JSON.stringify({...})` 로 전송
+
+```javascript
+$.ajax({
+    method: "PATCH",
+    headers: { "X-CSRF-TOKEN": CSRF_TOKEN },
+    contentType: "application/json",
+    data: JSON.stringify({ date, item, amount, category }),
+});
+```
+
+### 3. CSRF 토큰 Ajax 처리
+
+**문제:** Laravel의 CSRF 보호로 인해 POST/DELETE/PATCH Ajax 요청이 419 오류 반환  
+**해결:** `<meta name="csrf-token">` 태그에서 토큰을 읽어 요청 헤더 또는 데이터에 포함
+
+```javascript
+var CSRF_TOKEN = $('meta[name="csrf-token"]').attr('content');
+
+// POST: data에 포함
+data: { _token: CSRF_TOKEN }
+
+// DELETE/PATCH: 헤더에 포함
+headers: { 'X-CSRF-TOKEN': CSRF_TOKEN }
+```
+
+### 4. RESTful 라우트 순서 충돌
+
+**문제:** `/api/expenses/settlement` 가 `/api/expenses/{id}` 로 인식되어 404 발생  
+**원인:** Laravel 라우터는 위에서 아래로 매칭하므로 `{id}` 라우트가 먼저 오면 `settlement` 를 id로 처리  
+**해결:** `settlement` 라우트를 `{id}` 라우트보다 위에 선언
+
+```php
+Route::get('/expenses/settlement', [ExpenseController::class, 'settlement']); // 먼저!
+Route::get('/expenses/{id}', [ExpenseController::class, 'show']);
+Route::delete('/expenses/{id}', [ExpenseController::class, 'destroy']);
+```
+
+### 5. 실시간 환율 API 연동
+
+**문제:** JPY 금액 입력 시 원화 환산이 필요하나 프론트엔드에 API 키 노출 불가  
+**해결:** Laravel 백엔드에서 환율 API 호출 후 클라이언트에 rate 값만 반환
+
+```
+jQuery → GET /api/exchange-rate/JPY → Laravel → ExchangeRate API → rate 반환
+```
+
+<br>
+
+## 📄 라이선스
+
+MIT License
