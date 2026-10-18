@@ -15,7 +15,7 @@ class ExchangeRateService
     public function rate(string $currency): array
     {
         return Cache::remember("exchange-rate:{$currency}", 3600, function () use ($currency) {
-            $apiKey = env('EXCHANGE_API_KEY');
+            $apiKey = config('services.exchange_rate.api_key');
             $response = Http::timeout(5)->get("https://v6.exchangerate-api.com/v6/{$apiKey}/pair/{$currency}/KRW");
 
             if ($response->failed() || ! isset($response['conversion_rate'])) {
