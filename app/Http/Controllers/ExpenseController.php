@@ -2,118 +2,124 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\StoreExpenseRequest;
-use App\Http\Requests\UpdateExpenseRequest;
 use App\Services\ExchangeRateService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
 class ExpenseController extends Controller
 {
-    // 목록 조회
-    public function index()
+    public function store(Request $request, string $token, ExchangeRateService $exchangeRate)
     {
-        $expenses = DB::table('expenses')
-            ->orderBy('date', 'desc')
-            ->orderBy('id', 'desc')
-            ->get();
-
-        return response()->json($expenses);
-    }
-
-    // 단건 조회
-    public function show($id)
-    {
-        $expense = DB::table('expenses')->where('id', $id)->first();
-
-        return response()->json($expense);
-    }
-
-    // 등록 — StoreExpenseRequest로 유효성 검사 분리
-    // 원화 환산액은 클라이언트 값을 믿지 않고 서버에서 계산
-    public function store(StoreExpenseRequest $request, ExchangeRateService $exchangeRate)
-    {
+        $trip = $request->attributes->get('trip');
+        $actor = $this->actor($request, $trip->id);
+        $data = $this->data($request, $trip->id);
         try {
-            $amountKrw = $exchangeRate->toKrw((int) $request->amount, $request->currency);
+            $data['amount_krw'] = $this->toKrw($exchangeRate, $data);
         } catch (RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], 503);
         }
 
-        $id = DB::table('expenses')->insertGetId([
-            'date' => $request->date,
-            'item' => $request->item,
-            'amount' => $request->amount,
-            'category' => $request->category,
-            'memo' => $request->memo,
-            'payer' => $request->payer,
-            'currency' => $request->currency,
-            'amount_krw' => $amountKrw,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        $id = DB::transaction(function () use ($trip, $actor, $data) {
+            $id = DB::table('expenses')->insertGetId($data + [
+                'trip_id' => $trip->id, 'version' => 1,
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+            $this->event($trip->id, $actor, $id, 'create', null, DB::table('expenses')->find($id));
+
+            return $id;
+        });
 
         return response()->json(['id' => $id, 'message' => '등록 완료'], 201);
     }
 
-    // 수정 — UpdateExpenseRequest로 유효성 검사 분리
-    public function update(UpdateExpenseRequest $request, $id, ExchangeRateService $exchangeRate)
+    public function update(Request $request, string $token, int $expense, ExchangeRateService $exchangeRate)
     {
+        $trip = $request->attributes->get('trip');
+        $before = DB::table('expenses')->where('trip_id', $trip->id)->find($expense);
+        abort_unless($before, 404);
+        $actor = $this->actor($request, $trip->id);
+        $version = $request->validate(['version' => ['required', 'integer', 'min:1']])['version'];
+        abort_unless((int) $before->version === (int) $version, 409, '다른 참여자가 먼저 변경했습니다. 최신 내역을 확인해주세요.');
+        $data = $this->data($request, $trip->id);
         try {
-            $amountKrw = $exchangeRate->toKrw((int) $request->amount, $request->currency);
+            // Editing metadata must not revalue historic foreign spending.
+            $data['amount_krw'] = (int) $data['amount'] === (int) $before->amount && $data['currency'] === $before->currency
+                ? $before->amount_krw : $this->toKrw($exchangeRate, $data);
         } catch (RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], 503);
         }
 
-        DB::table('expenses')->where('id', $id)->update([
-            'date' => $request->date,
-            'item' => $request->item,
-            'amount' => $request->amount,
-            'currency' => $request->currency,
-            'category' => $request->category,
-            'payer' => $request->payer,
-            'amount_krw' => $amountKrw,
-            'updated_at' => now(),
-        ]);
+        DB::transaction(function () use ($trip, $expense, $version, $data, $before, $actor) {
+            $changed = DB::table('expenses')->where('trip_id', $trip->id)->where('id', $expense)->where('version', $version)
+                ->update($data + ['version' => $version + 1, 'updated_at' => now()]);
+            abort_unless($changed, 409, '다른 참여자가 먼저 변경했습니다. 최신 내역을 확인한 뒤 다시 수정해주세요.');
+            $this->event($trip->id, $actor, $expense, 'update', $before, DB::table('expenses')->find($expense));
+        });
 
         return response()->json(['message' => '수정 완료']);
     }
 
-    // 삭제
-    public function destroy($id)
+    public function destroy(Request $request, string $token, int $expense)
     {
-        DB::table('expenses')->where('id', $id)->delete();
+        $trip = $request->attributes->get('trip');
+        $before = DB::table('expenses')->where('trip_id', $trip->id)->find($expense);
+        abort_unless($before, 404);
+        $actor = $this->actor($request, $trip->id);
+        $version = $request->validate(['version' => ['required', 'integer', 'min:1']])['version'];
+        DB::transaction(function () use ($trip, $expense, $version, $before, $actor) {
+            $changed = DB::table('expenses')->where('trip_id', $trip->id)->where('id', $expense)->where('version', $version)->delete();
+            abort_unless($changed, 409, '다른 참여자가 먼저 변경했습니다. 최신 내역을 확인해주세요.');
+            $this->event($trip->id, $actor, $expense, 'delete', $before, null);
+        });
 
         return response()->json(['message' => '삭제 완료']);
     }
 
-    // 정산 계산
-    public function settlement()
+    private function actor(Request $request, int $trip): int
     {
-        $expenses = DB::table('expenses')->get();
+        $id = (int) $request->session()->get('trip.'.$trip, 0);
+        abort_unless(DB::table('participants')->where('trip_id', $trip)->where('id', $id)->exists(), 403, '먼저 참여자 이름을 선택해주세요.');
 
-        $me = 0;
-        $sibling = 0;
+        return $id;
+    }
 
-        foreach ($expenses as $expense) {
-            if ($expense->payer === '나') {
-                $me += $expense->amount_krw;
-            } else {
-                $sibling += $expense->amount_krw;
-            }
+    private function data(Request $request, int $trip): array
+    {
+        $data = $request->validate([
+            'date' => ['required', 'date_format:Y-m-d'],
+            'item' => ['required', 'string', 'max:20'],
+            'amount' => ['required', 'integer', 'min:1', 'max:10000000'],
+            'currency' => ['required', Rule::in(['KRW', 'JPY', 'USD'])],
+            'payer_id' => ['required', 'integer', Rule::exists('participants', 'id')->where('trip_id', $trip)],
+            'category' => ['required', 'string', Rule::in(['식비', '교통', '숙박', '쇼핑', '관광', '선물', '기타'])],
+            'memo' => ['nullable', 'string', 'max:1000'],
+        ]);
+        $data['payer'] = DB::table('participants')->where('trip_id', $trip)->where('id', $data['payer_id'])->value('name');
+        $data['memo'] = $data['memo'] ?? null;
+
+        return $data;
+    }
+
+    private function toKrw(ExchangeRateService $exchangeRate, array $data): int
+    {
+        $krw = $exchangeRate->toKrw((int) $data['amount'], $data['currency']);
+        if ($krw < 1 || $krw > 4294967295) {
+            throw ValidationException::withMessages(['amount' => '원화 환산액은 1원 이상 42억 9,496만 7,295원 이하여야 합니다.']);
         }
 
-        $total = $me + $sibling;
-        $diff = abs($me - $sibling);
-        $whoPays = $me > $sibling ? '동생' : '나';
-        $amount = round($diff / 2);
+        return $krw;
+    }
 
-        return response()->json([
-            'me' => $me,
-            'sibling' => $sibling,
-            'total' => $total,
-            'diff' => $diff,
-            'who_pays' => $whoPays,
-            'amount' => $amount,
+    private function event(int $trip, int $actor, int $expense, string $action, ?object $before, ?object $after): void
+    {
+        DB::table('expense_events')->insert([
+            'trip_id' => $trip, 'actor_id' => $actor, 'expense_id' => $expense, 'action' => $action,
+            'before' => $before ? json_encode($before, JSON_THROW_ON_ERROR) : null,
+            'after' => $after ? json_encode($after, JSON_THROW_ON_ERROR) : null,
+            'created_at' => now(),
         ]);
     }
 }

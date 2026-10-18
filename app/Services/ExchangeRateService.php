@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
@@ -14,17 +15,28 @@ class ExchangeRateService
      */
     public function rate(string $currency): array
     {
+        if (! in_array($currency, ['KRW', 'JPY', 'USD'], true)) {
+            throw new RuntimeException('지원하지 않는 통화입니다.');
+        }
+        if ($currency === 'KRW') {
+            return ['rate' => 1, 'last_updated' => null];
+        }
+
         return Cache::remember("exchange-rate:{$currency}", 3600, function () use ($currency) {
             $apiKey = config('services.exchange_rate.api_key');
-            $response = Http::timeout(5)->get("https://v6.exchangerate-api.com/v6/{$apiKey}/pair/{$currency}/KRW");
+            try {
+                $response = Http::timeout(5)->get("https://v6.exchangerate-api.com/v6/{$apiKey}/pair/{$currency}/KRW");
+            } catch (ConnectionException $e) {
+                throw new RuntimeException('환율 서버에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.', 0, $e);
+            }
 
-            if ($response->failed() || ! isset($response['conversion_rate'])) {
+            if ($response->failed() || ! is_numeric($response['conversion_rate'] ?? null) || $response['conversion_rate'] <= 0) {
                 throw new RuntimeException('환율 정보를 가져오지 못했습니다.');
             }
 
             return [
                 'rate' => $response['conversion_rate'],
-                'last_updated' => $response['time_last_update_utc'],
+                'last_updated' => $response['time_last_update_utc'] ?? null,
             ];
         });
     }

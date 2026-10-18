@@ -11,11 +11,23 @@ class ExpenseKrwTest extends TestCase
 {
     use RefreshDatabase;
 
+    private string $endpoint;
+
+    private int $payer;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->endpoint = $this->postJson('/trips', ['name' => '환율 검증', 'participants' => ['나', '동생']])->assertCreated()->json('path');
+        $this->payer = DB::table('participants')->orderBy('id')->value('id');
+        $this->postJson($this->endpoint.'/identity', ['participant_id' => $this->payer])->assertOk();
+    }
+
     private function payload(array $override = []): array
     {
         return array_merge([
             'date' => '2026-05-09', 'item' => '다이소', 'amount' => 1320,
-            'category' => '기타', 'currency' => 'JPY', 'payer' => '나',
+            'category' => '기타', 'currency' => 'JPY', 'payer_id' => $this->payer, 'version' => 1,
         ], $override);
     }
 
@@ -23,7 +35,7 @@ class ExpenseKrwTest extends TestCase
     {
         Http::fake(['*' => Http::response(['conversion_rate' => 9.44, 'time_last_update_utc' => 'x'])]);
 
-        $this->postJson('/api/expenses', $this->payload(['amount_krw' => 1320]))->assertCreated();
+        $this->postJson($this->endpoint.'/expenses', $this->payload(['amount_krw' => 1320]))->assertCreated();
 
         $this->assertSame(12461, (int) DB::table('expenses')->value('amount_krw'));
     }
@@ -31,7 +43,7 @@ class ExpenseKrwTest extends TestCase
     public function test_원화는_그대로_저장한다(): void
     {
         Http::fake();
-        $this->postJson('/api/expenses', $this->payload(['currency' => 'KRW', 'amount' => 800]))->assertCreated();
+        $this->postJson($this->endpoint.'/expenses', $this->payload(['currency' => 'KRW', 'amount' => 800]))->assertCreated();
         $this->assertSame(800, (int) DB::table('expenses')->value('amount_krw'));
         Http::assertNothingSent();
     }
@@ -39,17 +51,17 @@ class ExpenseKrwTest extends TestCase
     public function test_환율_조회_실패시_저장하지_않는다(): void
     {
         Http::fake(['*' => Http::response([], 500)]);
-        $this->postJson('/api/expenses', $this->payload())->assertStatus(503);
+        $this->postJson($this->endpoint.'/expenses', $this->payload())->assertStatus(503);
         $this->assertSame(0, DB::table('expenses')->count());
     }
 
     public function test_수정시에도_서버에서_다시_계산한다(): void
     {
         Http::fake(['*' => Http::response(['conversion_rate' => 9.44, 'time_last_update_utc' => 'x'])]);
-        $this->postJson('/api/expenses', $this->payload(['currency' => 'KRW']));
+        $this->postJson($this->endpoint.'/expenses', $this->payload(['currency' => 'KRW']));
         $id = DB::table('expenses')->value('id');
 
-        $this->patchJson("/api/expenses/{$id}", $this->payload(['amount' => 945]))->assertOk();
+        $this->patchJson($this->endpoint."/expenses/{$id}", $this->payload(['amount' => 945]))->assertOk();
         $this->assertSame(8921, (int) DB::table('expenses')->value('amount_krw'));
     }
 
