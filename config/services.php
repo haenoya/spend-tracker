@@ -14,6 +14,10 @@ return [
     |
     */
 
+    'exchange_rate' => [
+        'api_key' => env('EXCHANGE_API_KEY'),
+    ],
+
     'mailgun' => [
         'domain' => env('MAILGUN_DOMAIN'),
         'secret' => env('MAILGUN_SECRET'),
