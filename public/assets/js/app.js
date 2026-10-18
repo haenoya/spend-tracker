@@ -1,7 +1,7 @@
 $(function () {
     var CSRF_TOKEN = $('meta[name="csrf-token"]').attr("content");
 
-    // AI 카테고리 추천용 키워드 매핑 테이블
+    // 카테고리 자동 추천용 키워드 매핑 테이블
     var categoryKeywords = {
         식비: [
             "식당",
@@ -309,7 +309,7 @@ $(function () {
             $("#charCount").text($(this).val().length);
         });
 
-        // AI 카테고리 자동 추천 — keyup으로 키워드 매핑 비교
+        // 카테고리 자동 추천 — keyup으로 키워드 매핑 비교
         $("#item").on("keyup", function () {
             var input = $(this).val().toLowerCase();
             var matched = null;
@@ -399,10 +399,6 @@ $(function () {
             var category = $("#category").val();
             var currency = $("#currency").val();
             var payer = $("#payer").val();
-            var amount_krw =
-                currentRate === 1
-                    ? Number(amount)
-                    : Math.round(amount * currentRate);
 
             var isValid = true;
             if (!date) {
@@ -435,7 +431,6 @@ $(function () {
                     category,
                     currency,
                     payer,
-                    amount_krw,
                     _token: CSRF_TOKEN,
                 },
                 success: function () {
@@ -452,11 +447,11 @@ $(function () {
                     $("#aiSuggestion").hide();
                     currentRate = 1;
                 },
-                error: function () {
+                error: function (xhr) {
                     Swal.fire({
                         icon: "error",
                         title: "오류 발생",
-                        text: "등록에 실패했습니다.",
+                        text: xhr.responseJSON?.message || "등록에 실패했습니다.",
                     });
                 },
             });
@@ -549,10 +544,6 @@ $(function () {
             var id = $("#editId").val();
             var editAmount = $("#editAmount").val();
             var editCurrency = $("#editCurrency").val();
-            var editAmountKrw =
-                editCurrency === "KRW"
-                    ? Number(editAmount)
-                    : Math.round(editAmount * currentRate);
 
             $.ajax({
                 url: "/api/expenses/" + id,
@@ -566,7 +557,6 @@ $(function () {
                     currency: editCurrency,
                     category: $("#editCategory").val(),
                     payer: $("#editPayer").val(),
-                    amount_krw: editAmountKrw,
                 }),
                 success: function () {
                     $("#editModal").modal("hide");
@@ -578,11 +568,11 @@ $(function () {
                         showConfirmButton: false,
                     });
                 },
-                error: function () {
+                error: function (xhr) {
                     Swal.fire({
                         icon: "error",
                         title: "오류 발생",
-                        text: "수정에 실패했습니다.",
+                        text: xhr.responseJSON?.message || "수정에 실패했습니다.",
                     });
                 },
             });

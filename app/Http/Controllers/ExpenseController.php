@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Support\Facades\DB;
 use App\Http\Requests\StoreExpenseRequest;
 use App\Http\Requests\UpdateExpenseRequest;
+use App\Services\ExchangeRateService;
+use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 class ExpenseController extends Controller
 {
@@ -15,6 +17,7 @@ class ExpenseController extends Controller
             ->orderBy('date', 'desc')
             ->orderBy('id', 'desc')
             ->get();
+
         return response()->json($expenses);
     }
 
@@ -22,21 +25,29 @@ class ExpenseController extends Controller
     public function show($id)
     {
         $expense = DB::table('expenses')->where('id', $id)->first();
+
         return response()->json($expense);
     }
 
     // 등록 — StoreExpenseRequest로 유효성 검사 분리
-    public function store(StoreExpenseRequest $request)
+    // 원화 환산액은 클라이언트 값을 믿지 않고 서버에서 계산
+    public function store(StoreExpenseRequest $request, ExchangeRateService $exchangeRate)
     {
+        try {
+            $amountKrw = $exchangeRate->toKrw((int) $request->amount, $request->currency);
+        } catch (RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 503);
+        }
+
         $id = DB::table('expenses')->insertGetId([
-            'date'       => $request->date,
-            'item'       => $request->item,
-            'amount'     => $request->amount,
-            'category'   => $request->category,
-            'memo'       => $request->memo,
-            'payer'      => $request->payer,
-            'currency'   => $request->currency,
-            'amount_krw' => $request->amount_krw,
+            'date' => $request->date,
+            'item' => $request->item,
+            'amount' => $request->amount,
+            'category' => $request->category,
+            'memo' => $request->memo,
+            'payer' => $request->payer,
+            'currency' => $request->currency,
+            'amount_krw' => $amountKrw,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -45,16 +56,22 @@ class ExpenseController extends Controller
     }
 
     // 수정 — UpdateExpenseRequest로 유효성 검사 분리
-    public function update(UpdateExpenseRequest $request, $id)
+    public function update(UpdateExpenseRequest $request, $id, ExchangeRateService $exchangeRate)
     {
+        try {
+            $amountKrw = $exchangeRate->toKrw((int) $request->amount, $request->currency);
+        } catch (RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 503);
+        }
+
         DB::table('expenses')->where('id', $id)->update([
-            'date'       => $request->date,
-            'item'       => $request->item,
-            'amount'     => $request->amount,
-            'currency'   => $request->currency,
-            'category'   => $request->category,
-            'payer'      => $request->payer,
-            'amount_krw' => $request->amount_krw,
+            'date' => $request->date,
+            'item' => $request->item,
+            'amount' => $request->amount,
+            'currency' => $request->currency,
+            'category' => $request->category,
+            'payer' => $request->payer,
+            'amount_krw' => $amountKrw,
             'updated_at' => now(),
         ]);
 
@@ -65,6 +82,7 @@ class ExpenseController extends Controller
     public function destroy($id)
     {
         DB::table('expenses')->where('id', $id)->delete();
+
         return response()->json(['message' => '삭제 완료']);
     }
 
@@ -90,12 +108,12 @@ class ExpenseController extends Controller
         $amount = round($diff / 2);
 
         return response()->json([
-            'me'       => $me,
-            'sibling'  => $sibling,
-            'total'    => $total,
-            'diff'     => $diff,
+            'me' => $me,
+            'sibling' => $sibling,
+            'total' => $total,
+            'diff' => $diff,
             'who_pays' => $whoPays,
-            'amount'   => $amount,
+            'amount' => $amount,
         ]);
     }
 }
